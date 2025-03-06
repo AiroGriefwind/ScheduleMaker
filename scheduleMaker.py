@@ -76,9 +76,9 @@ class AvailabilityEditor(QMainWindow):
         
         # Bottom buttons
         button_layout = QHBoxLayout()
-        save_btn = QPushButton("Save Availability")
+        save_btn = QPushButton("保存時間")
         save_btn.clicked.connect(self.save_data)
-        generate_btn = QPushButton("Generate Schedule")
+        generate_btn = QPushButton("導出至Excel")
         generate_btn.clicked.connect(self.generate_schedule)
         button_layout.addWidget(save_btn)
         button_layout.addWidget(generate_btn)
@@ -103,9 +103,11 @@ class AvailabilityEditor(QMainWindow):
                 QPushButton {{ 
                     background-color: {color.name()}; 
                     border: 1px solid gray;
+                    color: white;  
                 }}
                 QPushButton:checked {{
-                    border: 2px solid black;
+                    border: 2px solid white;  /* Changed highlight color to white */
+                    color: black;  /* Changed text color to black */
                 }}
             """)
             btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
@@ -145,7 +147,7 @@ class AvailabilityEditor(QMainWindow):
 
     def save_data(self):
         save_data(self.availability)
-        QMessageBox.information(self, "Saved", "Availability data saved successfully!")
+        QMessageBox.information(self, "Saved", "時間已成功保存!")
 
     def generate_schedule(self):
         try:
@@ -195,7 +197,7 @@ class AvailabilityEditor(QMainWindow):
             # Save to Excel
             df = pd.DataFrame(schedule)
             df.to_excel("freelancer_schedule.xlsx", index=False)
-            QMessageBox.information(self, "Success", "Schedule generated successfully!")
+            QMessageBox.information(self, "Success", "Excel已成功生成!")
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error: {str(e)}")
