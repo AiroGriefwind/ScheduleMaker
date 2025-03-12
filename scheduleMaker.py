@@ -155,43 +155,44 @@ class AvailabilityEditor(QMainWindow):
             dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
             schedule = []
             
-            # Updated scheduling rules with shift priorities
-            SHIFT_PRIORITY = {
-                "weekday": [
-                    ("night", "15-24", 2),  # Require 2 night shifts first
-                    ("early", "7-16", 1),
-                    ("day", "10-19", 1)
-                ],
-                "weekend": [
-                    ("early", "7-16", 1),
-                    ("day", "10-19", 1),
-                    ("night", "15-24", 1)
-                ]
+            SHIFT_REQUIREMENTS = {
+                "weekday": {"early": 1, "day": 1, "night": 2},
+                "weekend": {"early": 1, "day": 1, "night": 1}
+            }
+            
+            SHIFT_MAPPING = {
+                "early": "7-16",
+                "day": "10-19",
+                "night": "15-24"
             }
 
             for date in dates:
                 day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
                 assigned_shifts = {name: 'off' for name in FREELANCERS}
-                freelancer_queue = deque(FREELANCERS)  # Reset queue daily
-
-                # Process shifts in priority order
-                for shift_name, shift_value, required in SHIFT_PRIORITY[day_type]:
-                    assignments_made = 0
-                    rotation_count = 0
-
-                    while assignments_made < required and rotation_count < len(FREELANCERS):
-                        current_worker = freelancer_queue[0]
-                        
-                        if (assigned_shifts[current_worker] == 'off' and 
-                            shift_value in self.availability[date.strftime("%Y-%m-%d")][current_worker]):
-                            assigned_shifts[current_worker] = shift_value
-                            freelancer_queue.rotate(-1)  # Move to next worker
-                            assignments_made += 1
-                            rotation_count = 0  # Reset rotation counter
-                        else:
-                            freelancer_queue.rotate(-1)
-                            rotation_count += 1
-
+                available_freelancers = {shift: [] for shift in SHIFT_MAPPING.values()}
+                
+                # Populate available freelancers for each shift
+                for freelancer in FREELANCERS:
+                    for shift, shift_time in SHIFT_MAPPING.items():
+                        if shift_time in self.availability[date.strftime("%Y-%m-%d")][freelancer]:
+                            available_freelancers[shift_time].append(freelancer)
+                
+                # Assign shifts based on requirements
+                for shift, count in SHIFT_REQUIREMENTS[day_type].items():
+                    shift_time = SHIFT_MAPPING[shift]
+                    assigned = 0
+                    while assigned < count and available_freelancers[shift_time]:
+                        for freelancer in available_freelancers[shift_time]:
+                            if assigned_shifts[freelancer] == 'off':
+                                assigned_shifts[freelancer] = shift_time
+                                assigned += 1
+                                for s in SHIFT_MAPPING.values():
+                                    if freelancer in available_freelancers[s]:
+                                        available_freelancers[s].remove(freelancer)
+                                break
+                        if assigned == count:
+                            break
+                
                 schedule.append({"Date": date.strftime("%d/%m/%Y"), **assigned_shifts})
 
             # Save to Excel
@@ -201,6 +202,7 @@ class AvailabilityEditor(QMainWindow):
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error: {str(e)}")
+
 
 
 if __name__ == "__main__":
