@@ -10,11 +10,45 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QPalette
 
+# Create a base Employee class with common functionality
+class Employee:
+    def __init__(self, name, employee_type):
+        self.name = name
+        self.employee_type = employee_type
+        
+    def get_available_shifts(self):
+        # Base implementation for available shifts
+        pass
+    
+    def get_display_name(self):
+        return f"{self.name}({self.employee_type[0]})"
+        
+# Define specialized employee classes
+class Freelancer(Employee):
+    def __init__(self, name):
+        super().__init__(name, "Freelancer")
+        
+    def get_available_shifts(self):
+        # Return freelancer-specific shifts
+        return ["7-16", "10-19", "15-24"]
+    
+# Initialize employees
+def init_employees():
+    freelancers = [
+        Freelancer("Helen"),
+        Freelancer("Lili"),
+        Freelancer("Matthew"),
+        Freelancer("Ka"),
+        Freelancer("Kit"),
+        Freelancer("Paul")
+    ]
+    return freelancers
+    
 # Initialize availability data structure
-def init_availability(start_date):
+def init_availability(start_date, employees):
     return {
         (start_date + timedelta(days=i)).strftime("%Y-%m-%d"): {
-            freelancer: [] for freelancer in FREELANCERS
+            employee.get_display_name(): [] for employee in employees
         } for i in range(7)
     }
 
@@ -31,7 +65,11 @@ def load_data():
         return None
 
 # ---------- Constants ----------
-FREELANCERS = ["Helen(F)", "Lili(F)", "Matthew(F)", "Ka(F)", "Kit(F)", "Paul(F)"]
+# Initialize employees
+EMPLOYEES = init_employees()
+# For backward compatibility
+FREELANCERS = [employee.get_display_name() for employee in EMPLOYEES if isinstance(employee, Freelancer)]
+# Shift colors for UI
 SHIFT_COLORS = {
     "7-16": QColor(144, 238, 144),   # Light green
     "10-19": QColor(255, 228, 181),  # Light orange
@@ -46,14 +84,22 @@ class AvailabilityEditor(QMainWindow):
     def __init__(self, start_date=datetime(2025, 3, 17)):
         super().__init__()
         self.start_date = start_date
-        self.current_freelancer = FREELANCERS[0]
-        self.availability = load_data() or init_availability(start_date)
+        self.employees = EMPLOYEES
+        self.employee_names = [employee.get_display_name() for employee in self.employees]
+        self.current_employee_name = self.employee_names[0] if self.employee_names else ""
+        
+        # Check if we have existing data or initialize new
+        loaded_data = load_data()
+        if loaded_data:
+            self.availability = loaded_data
+        else:
+            self.availability = init_availability(start_date, self.employees)
         
         self.init_ui()
         self.update_calendar()
 
     def init_ui(self):
-        self.setWindowTitle("Freelancer Availability Editor")
+        self.setWindowTitle("Employee Availability Editor")
         self.setGeometry(100, 100, 1000, 600)
         
         main_widget = QWidget()
@@ -62,11 +108,11 @@ class AvailabilityEditor(QMainWindow):
         
         # Top controls
         control_layout = QHBoxLayout()
-        self.freelancer_combo = QComboBox()
-        self.freelancer_combo.addItems(FREELANCERS)
-        self.freelancer_combo.currentTextChanged.connect(self.freelancer_changed)
-        control_layout.addWidget(QLabel("Select Freelancer:"))
-        control_layout.addWidget(self.freelancer_combo)
+        self.employee_combo = QComboBox()
+        self.employee_combo.addItems(self.employee_names)
+        self.employee_combo.currentTextChanged.connect(self.employee_changed)
+        control_layout.addWidget(QLabel("Select Employee:"))
+        control_layout.addWidget(self.employee_combo)
         
         # Calendar scroll area
         scroll = QScrollArea()
@@ -111,7 +157,7 @@ class AvailabilityEditor(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             # Reset availability
-            self.availability = init_availability(self.start_date)
+            self.availability = init_availability(self.start_date, self.employees)
             save_data(self.availability)
             
             # Update calendar UI
@@ -126,7 +172,7 @@ class AvailabilityEditor(QMainWindow):
             df = pd.read_excel(file_path)
             
             # Validate required columns
-            required_columns = {'Date', 'Freelancer', 'Shift'}
+            required_columns = {'Date', 'Employee', 'Shift'}
             if not required_columns.issubset(df.columns):
                 raise ValueError(f"Excel file must contain columns: {required_columns}")
             
@@ -134,17 +180,17 @@ class AvailabilityEditor(QMainWindow):
             self.availability = {}
             for _, row in df.iterrows():
                 date_str = row['Date']
-                freelancer = row['Freelancer']
+                employee_name = row['Employee']
                 shift = row['Shift']
                 
                 if date_str not in self.availability:
-                    self.availability[date_str] = {freelancer: [] for freelancer in FREELANCERS}
+                    self.availability[date_str] = {name: [] for name in self.employee_names}
                 
-                if freelancer not in self.availability[date_str]:
-                    self.availability[date_str][freelancer] = []
+                if employee_name not in self.availability[date_str]:
+                    self.availability[date_str][employee_name] = []
                 
-                if shift not in self.availability[date_str][freelancer]:
-                    self.availability[date_str][freelancer].append(shift)
+                if shift not in self.availability[date_str][employee_name]:
+                    self.availability[date_str][employee_name].append(shift)
             
             # Save updated availability and refresh UI
             save_data(self.availability)
@@ -159,10 +205,10 @@ class AvailabilityEditor(QMainWindow):
         try:
             # Prepare data for export
             data = []
-            for date, freelancers in self.availability.items():
-                for freelancer, shifts in freelancers.items():
+            for date, employees in self.availability.items():
+                for employee_name, shifts in employees.items():
                     for shift in shifts:
-                        data.append({"Date": date, "Freelancer": freelancer, "Shift": shift})
+                        data.append({"Date": date, "Employee": employee_name, "Shift": shift})
             
             # Convert to DataFrame
             df = pd.DataFrame(data)
@@ -184,22 +230,31 @@ class AvailabilityEditor(QMainWindow):
         day_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         day_layout.addWidget(day_label)
         
-        for shift, color in SHIFT_COLORS.items():
-            btn = QPushButton(shift)
-            btn.setCheckable(True)
-            btn.setStyleSheet(f"""
-                QPushButton {{ 
-                    background-color: {color.name()}; 
-                    border: 1px solid gray;
-                    color: white;  
-                }}
-                QPushButton:checked {{
-                    border: 2px solid white;  /* Changed highlight color to white */
-                    color: black;  /* Changed text color to black */
-                }}
-            """)
-            btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
-            day_layout.addWidget(btn)
+         # Get the employee object for the current employee name
+        current_employee = next((e for e in self.employees if e.get_display_name() == self.current_employee_name), None)
+        
+        if current_employee:
+            # Get shifts based on employee type
+            available_shifts = current_employee.get_available_shifts()
+            
+            for shift in available_shifts:
+                if shift in SHIFT_COLORS:
+                    color = SHIFT_COLORS[shift]
+                    btn = QPushButton(shift)
+                    btn.setCheckable(True)
+                    btn.setStyleSheet(f"""
+                        QPushButton {{ 
+                            background-color: {color.name()}; 
+                            border: 1px solid gray;
+                            color: white;  
+                        }}
+                        QPushButton:checked {{
+                            border: 2px solid white;
+                            color: black;
+                        }}
+                    """)
+                    btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
+                    day_layout.addWidget(btn)
         
         return day_widget
 
@@ -214,23 +269,29 @@ class AvailabilityEditor(QMainWindow):
             day_widget = self.create_day_widget(date_str)
             self.calendar_layout.addWidget(day_widget, 0, col)
             
-            # Update button states
-            shifts = self.availability[date_str][self.current_freelancer]
-            for i in range(day_widget.layout().count()):
-                widget = day_widget.layout().itemAt(i).widget()
-                if isinstance(widget, QPushButton):
-                    widget.setChecked(widget.text() in shifts)
+            # Update button states for each shift
+            if self.current_employee_name in self.availability[date_str]:
+                shifts = self.availability[date_str][self.current_employee_name]
+                for i in range(day_widget.layout().count()):
+                    widget = day_widget.layout().itemAt(i).widget()
+                    if isinstance(widget, QPushButton):
+                        widget.setChecked(widget.text() in shifts)
 
     def toggle_shift(self, date_str, shift):
-        current_shifts = self.availability[date_str][self.current_freelancer]
-        if shift in current_shifts:
-            current_shifts.remove(shift)
-        else:
-            current_shifts.append(shift)
-        self.update_calendar()
+        if self.current_employee_name in self.availability[date_str]:
+            current_shifts = self.availability[date_str][self.current_employee_name]
+            if shift in current_shifts:
+                current_shifts.remove(shift)
+            else:
+                current_shifts.append(shift)
+            
+            # Save changes and refresh UI
+            save_data(self.availability)
+            self.update_calendar()
 
-    def freelancer_changed(self, name):
-        self.current_freelancer = name
+
+    def employee_changed(self, name):
+        self.current_employee_name = name
         self.update_calendar()
 
     def save_data(self):
@@ -244,6 +305,9 @@ class AvailabilityEditor(QMainWindow):
             date_strings = sorted(self.availability.keys())
             dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
             schedule = []
+
+            # Get only freelancers for now
+            freelancer_names = [e.get_display_name() for e in self.employees if isinstance(e, Freelancer)]
             
             # Shift staffing requirements - should be configurable per employee type
             SHIFT_REQUIREMENTS = {
@@ -268,24 +332,24 @@ class AvailabilityEditor(QMainWindow):
                 available_freelancers = {shift: [] for shift in SHIFT_MAPPING.values()}
                 
                 # Populate available employees list based on their availability
-                for freelancer in FREELANCERS:
+                for freelancer_name in freelancer_names:
                     for shift, shift_time in SHIFT_MAPPING.items():
-                        if shift_time in self.availability[date.strftime("%Y-%m-%d")][freelancer]:
-                            available_freelancers[shift_time].append(freelancer)
+                        if shift_time in self.availability[date.strftime("%Y-%m-%d")][freelancer_name]:
+                            available_freelancers[shift_time].append(freelancer_name)
                 
                 # Assign shifts based on staffing requirements
                 for shift, count in SHIFT_REQUIREMENTS[day_type].items():
                     shift_time = SHIFT_MAPPING[shift]
                     assigned = 0
                     while assigned < count and available_freelancers[shift_time]:
-                        for freelancer in available_freelancers[shift_time]:
-                            if assigned_shifts[freelancer] == 'off':
-                                assigned_shifts[freelancer] = shift_time
+                        for freelancer_name in available_freelancers[shift_time]:
+                            if assigned_shifts[freelancer_name] == 'off':
+                                assigned_shifts[freelancer_name] = shift_time
                                 assigned += 1
                                 # Remove assigned employee from available lists
                                 for s in SHIFT_MAPPING.values():
-                                    if freelancer in available_freelancers[s]:
-                                        available_freelancers[s].remove(freelancer)
+                                    if freelancer_name in available_freelancers[s]:
+                                        available_freelancers[s].remove(freelancer_name)
                                 break
                         if assigned == count:
                             break
