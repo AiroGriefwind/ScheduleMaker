@@ -141,8 +141,8 @@ class AvailabilityEditor(QMainWindow):
         try:
             result = generate_schedule(self.availability, self.start_date)
             QMessageBox.information(self, "Success", result)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error: {str(e)}")
+        except ValueError as e:
+            QMessageBox.critical(self, "Insufficient Staff", str(e))
 
     def import_from_excel(self, file_path):
         try:

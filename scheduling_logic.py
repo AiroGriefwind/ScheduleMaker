@@ -93,18 +93,33 @@ def generate_schedule(availability, start_date):
         
         for shift, count in SHIFT_REQUIREMENTS[day_type].items():
             shift_time = SHIFT_MAPPING[shift]
-            assigned = 0
-            while assigned < count and available_freelancers[shift_time]:
-                for freelancer_name in available_freelancers[shift_time]:
+            available_for_shift = [name for name in FREELANCERS if shift_time in availability[date.strftime("%Y-%m-%d")][name]]
+            if len(available_for_shift) < count:
+                # Assign as many freelancers as possible
+                for freelancer_name in available_for_shift:
                     if assigned_shifts[freelancer_name] == 'off':
                         assigned_shifts[freelancer_name] = shift_time
-                        assigned += 1
                         for s in SHIFT_MAPPING.values():
                             if freelancer_name in available_freelancers[s]:
                                 available_freelancers[s].remove(freelancer_name)
+                # Raise a warning instead of an error
+                raise ValueError(f"Shift {shift} on {date.strftime('%d/%m/%Y')} is understaffed. "
+                                 f"Required: {count}, Assigned: {len([name for name, shift in assigned_shifts.items() if shift == shift_time])}. "
+                                 f"Contact: {', '.join(available_for_shift)}")
+            else:
+                # Assign the required number of freelancers
+                assigned = 0
+                while assigned < count and available_freelancers[shift_time]:
+                    for freelancer_name in available_freelancers[shift_time]:
+                        if assigned_shifts[freelancer_name] == 'off':
+                            assigned_shifts[freelancer_name] = shift_time
+                            assigned += 1
+                            for s in SHIFT_MAPPING.values():
+                                if freelancer_name in available_freelancers[s]:
+                                    available_freelancers[s].remove(freelancer_name)
+                            break
+                    if assigned == count:
                         break
-                if assigned == count:
-                    break
         
         schedule.append({"Date": date.strftime("%d/%m/%Y"), **assigned_shifts})
 
