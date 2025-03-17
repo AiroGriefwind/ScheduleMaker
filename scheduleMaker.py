@@ -1,3 +1,4 @@
+#Core Components and Libraries
 import sys
 import json
 import pandas as pd
@@ -236,35 +237,43 @@ class AvailabilityEditor(QMainWindow):
         save_data(self.availability)
         QMessageBox.information(self, "Saved", "時間已成功保存!")
 
+    # Generates work schedule based on availability and shift requirements
+    # EXTENSION POINT: Should use different scheduling rules per employee type
     def generate_schedule(self):
         try:
             date_strings = sorted(self.availability.keys())
             dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
             schedule = []
             
+            # Shift staffing requirements - should be configurable per employee type
             SHIFT_REQUIREMENTS = {
                 "weekday": {"early": 1, "day": 1, "night": 2},
                 "weekend": {"early": 1, "day": 1, "night": 1}
             }
             
+            # Mapping between shift names and time ranges
             SHIFT_MAPPING = {
                 "early": "7-16",
                 "day": "10-19",
                 "night": "15-24"
             }
 
+            # Process each date in the schedule period
             for date in dates:
+                # Determine if date is weekday or weekend
                 day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
+                # Initialize all employees as off-duty
                 assigned_shifts = {name: 'off' for name in FREELANCERS}
+                # Track available employees for each shift
                 available_freelancers = {shift: [] for shift in SHIFT_MAPPING.values()}
                 
-                # Populate available freelancers for each shift
+                # Populate available employees list based on their availability
                 for freelancer in FREELANCERS:
                     for shift, shift_time in SHIFT_MAPPING.items():
                         if shift_time in self.availability[date.strftime("%Y-%m-%d")][freelancer]:
                             available_freelancers[shift_time].append(freelancer)
                 
-                # Assign shifts based on requirements
+                # Assign shifts based on staffing requirements
                 for shift, count in SHIFT_REQUIREMENTS[day_type].items():
                     shift_time = SHIFT_MAPPING[shift]
                     assigned = 0
@@ -273,6 +282,7 @@ class AvailabilityEditor(QMainWindow):
                             if assigned_shifts[freelancer] == 'off':
                                 assigned_shifts[freelancer] = shift_time
                                 assigned += 1
+                                # Remove assigned employee from available lists
                                 for s in SHIFT_MAPPING.values():
                                     if freelancer in available_freelancers[s]:
                                         available_freelancers[s].remove(freelancer)
@@ -280,17 +290,16 @@ class AvailabilityEditor(QMainWindow):
                         if assigned == count:
                             break
                 
+                # Add completed day schedule to result
                 schedule.append({"Date": date.strftime("%d/%m/%Y"), **assigned_shifts})
 
-            # Save to Excel
+            # Save schedule to Excel
             df = pd.DataFrame(schedule)
             df.to_excel("freelancer_schedule.xlsx", index=False)
             QMessageBox.information(self, "Success", "Excel已成功生成!")
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error: {str(e)}")
-
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
