@@ -1,7 +1,7 @@
 import sys
 import json
 import pandas as pd
-from collections import deque  # <-- ADD THIS IMPORT
+from collections import deque  
 from datetime import datetime, timedelta
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QHBoxLayout, QPushButton, QComboBox, QLabel,
@@ -42,7 +42,7 @@ RULES = {
 }
 
 class AvailabilityEditor(QMainWindow):
-    def __init__(self, start_date=datetime(2025, 2, 1)):
+    def __init__(self, start_date=datetime(2025, 3, 17)):
         super().__init__()
         self.start_date = start_date
         self.current_freelancer = FREELANCERS[0]
@@ -86,6 +86,93 @@ class AvailabilityEditor(QMainWindow):
         layout.addLayout(control_layout)
         layout.addWidget(scroll)
         layout.addLayout(button_layout)
+
+        import_btn = QPushButton("從Excel導入")
+        import_btn.clicked.connect(lambda: self.import_from_excel("availability_export.xlsx"))  # Replace with file dialog if needed
+        button_layout.addWidget(import_btn)
+
+        export_btn = QPushButton("導出時間表至Excel")
+        export_btn.clicked.connect(self.export_availability_to_excel)
+        button_layout.addWidget(export_btn)
+
+        clear_btn = QPushButton("Clear Availability")
+        clear_btn.clicked.connect(self.clear_availability)
+        button_layout.addWidget(clear_btn)
+
+
+    def clear_availability(self):
+        # Confirm with the user before clearing
+        reply = QMessageBox.question(
+            self,
+            "Confirm Clear",
+            "Are you sure you want to clear all stored availability?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            # Reset availability
+            self.availability = init_availability(self.start_date)
+            save_data(self.availability)
+            
+            # Update calendar UI
+            self.update_calendar()
+            
+            QMessageBox.information(self, "Cleared", "All availability data has been cleared!")
+
+
+    def import_from_excel(self, file_path):
+        try:
+            # Read Excel file into a DataFrame
+            df = pd.read_excel(file_path)
+            
+            # Validate required columns
+            required_columns = {'Date', 'Freelancer', 'Shift'}
+            if not required_columns.issubset(df.columns):
+                raise ValueError(f"Excel file must contain columns: {required_columns}")
+            
+            # Reset availability based on imported data
+            self.availability = {}
+            for _, row in df.iterrows():
+                date_str = row['Date']
+                freelancer = row['Freelancer']
+                shift = row['Shift']
+                
+                if date_str not in self.availability:
+                    self.availability[date_str] = {freelancer: [] for freelancer in FREELANCERS}
+                
+                if freelancer not in self.availability[date_str]:
+                    self.availability[date_str][freelancer] = []
+                
+                if shift not in self.availability[date_str][freelancer]:
+                    self.availability[date_str][freelancer].append(shift)
+            
+            # Save updated availability and refresh UI
+            save_data(self.availability)
+            self.update_calendar()
+            
+            QMessageBox.information(self, "Success", "Data imported successfully!")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to import data: {str(e)}")
+
+    
+    def export_availability_to_excel(self):
+        try:
+            # Prepare data for export
+            data = []
+            for date, freelancers in self.availability.items():
+                for freelancer, shifts in freelancers.items():
+                    for shift in shifts:
+                        data.append({"Date": date, "Freelancer": freelancer, "Shift": shift})
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(data)
+            
+            # Save to Excel
+            df.to_excel("availability_export.xlsx", index=False)
+            
+            QMessageBox.information(self, "Success", "Availability exported successfully to Excel!")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to export availability: {str(e)}")
+
 
     def create_day_widget(self, date_str):
         day_widget = QWidget()
