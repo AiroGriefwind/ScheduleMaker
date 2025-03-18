@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QPalette
 from scheduling_logic import (EMPLOYEES, FREELANCERS, SHIFT_COLORS, 
                               load_data, save_data, init_availability, 
-                              generate_schedule, import_from_excel, 
+                               generate_schedule, import_from_excel, 
                               export_availability_to_excel, clear_availability)
 from datetime import datetime
 
@@ -66,6 +66,12 @@ class AvailabilityEditor(QMainWindow):
         layout.addLayout(control_layout)
         layout.addWidget(scroll)
         layout.addLayout(button_layout)
+        
+        # Add a button to validate the schedule
+        validate_btn = QPushButton("Validate Schedule")
+        validate_btn.clicked.connect(self.validate_schedule)
+        button_layout.addWidget(validate_btn)
+
 
     def create_day_widget(self, date_str):
         day_widget = QWidget()
@@ -136,13 +142,30 @@ class AvailabilityEditor(QMainWindow):
     def save_data(self):
         save_data(self.availability)
         QMessageBox.information(self, "Saved", "時間已成功保存!")
+    
+    def validate_schedule(self):
+        warnings = generate_schedule(self.availability, self.start_date, export_to_excel=False)
+        if warnings:
+            warning_message = "\n".join(warnings)
+            QMessageBox.warning(self, "Scheduling Warnings", warning_message)
+        else:
+            QMessageBox.information(self, "Validation", "No issues found with the current schedule.")
+
+
+
+
 
     def generate_schedule(self):
         try:
-            result = generate_schedule(self.availability, self.start_date)
-            QMessageBox.information(self, "Success", result)
-        except ValueError as e:
-            QMessageBox.critical(self, "Insufficient Staff", str(e))
+            warnings = generate_schedule(self.availability, self.start_date)
+            if warnings:
+                warning_message = "\n".join(warnings)
+                QMessageBox.warning(self, "Scheduling Warnings", warning_message)
+            QMessageBox.information(self, "Success", "Excel schedule has been successfully generated!")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to generate schedule: {str(e)}")
+
+
 
     def import_from_excel(self, file_path):
         try:

@@ -63,69 +63,69 @@ RULES = {
     "weekend": {"early": "7-16", "day": "10-19", "night": "15-24"}
 }
 
-def generate_schedule(availability, start_date):
-    date_strings = sorted(availability.keys())
-    dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
-    schedule = []
-
-    freelancer_names = [e.get_display_name() for e in EMPLOYEES if isinstance(e, Freelancer)]
-    
-    SHIFT_REQUIREMENTS = {
+SHIFT_REQUIREMENTS = {
         "weekday": {"early": 1, "day": 1, "night": 2},
         "weekend": {"early": 1, "day": 1, "night": 1}
     }
     
-    SHIFT_MAPPING = {
+SHIFT_MAPPING = {
         "early": "7-16",
         "day": "10-19",
         "night": "15-24"
     }
 
+def generate_schedule(availability, start_date, export_to_excel=True):
+    date_strings = sorted(availability.keys())
+    dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
+    schedule = []
+    warnings = []
+
+    freelancer_names = [e.get_display_name() for e in EMPLOYEES if isinstance(e, Freelancer)]
+
     for date in dates:
         day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
         assigned_shifts = {name: 'off' for name in FREELANCERS}
-        available_freelancers = {shift: [] for shift in SHIFT_MAPPING.values()}
-        
-        for freelancer_name in freelancer_names:
-            for shift, shift_time in SHIFT_MAPPING.items():
-                if shift_time in availability[date.strftime("%Y-%m-%d")][freelancer_name]:
-                    available_freelancers[shift_time].append(freelancer_name)
-        
-        for shift, count in SHIFT_REQUIREMENTS[day_type].items():
-            shift_time = SHIFT_MAPPING[shift]
-            available_for_shift = [name for name in FREELANCERS if shift_time in availability[date.strftime("%Y-%m-%d")][name]]
-            if len(available_for_shift) < count:
-                # Assign as many freelancers as possible
+
+        # Sort shifts by staffing requirements (highest first)
+        shifts_by_priority = sorted(
+            SHIFT_REQUIREMENTS[day_type].items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        for shift_name, required_count in shifts_by_priority:
+            shift_time = SHIFT_MAPPING[shift_name]
+            # Find freelancers available for this shift who haven't been assigned yet
+            available_for_shift = [
+                name for name in FREELANCERS 
+                if shift_time in availability[date.strftime("%Y-%m-%d")][name]
+                and assigned_shifts[name] == 'off'
+            ]
+
+            if len(available_for_shift) < required_count:
+                # Not enough freelancers available for this shift
+                warnings.append(
+                    f"Warning: Shift {shift_name} on {date.strftime('%Y-%m-%d')} is understaffed. "
+                    f"Required: {required_count}, Available: {len(available_for_shift)}."
+                )
+                # Assign whoever is available
                 for freelancer_name in available_for_shift:
-                    if assigned_shifts[freelancer_name] == 'off':
-                        assigned_shifts[freelancer_name] = shift_time
-                        for s in SHIFT_MAPPING.values():
-                            if freelancer_name in available_freelancers[s]:
-                                available_freelancers[s].remove(freelancer_name)
-                # Raise a warning instead of an error
-                raise ValueError(f"Shift {shift} on {date.strftime('%d/%m/%Y')} is understaffed. "
-                                 f"Required: {count}, Assigned: {len([name for name, shift in assigned_shifts.items() if shift == shift_time])}. "
-                                 f"Contact: {', '.join(available_for_shift)}")
+                    assigned_shifts[freelancer_name] = shift_time
             else:
-                # Assign the required number of freelancers
-                assigned = 0
-                while assigned < count and available_freelancers[shift_time]:
-                    for freelancer_name in available_freelancers[shift_time]:
-                        if assigned_shifts[freelancer_name] == 'off':
-                            assigned_shifts[freelancer_name] = shift_time
-                            assigned += 1
-                            for s in SHIFT_MAPPING.values():
-                                if freelancer_name in available_freelancers[s]:
-                                    available_freelancers[s].remove(freelancer_name)
-                            break
-                    if assigned == count:
-                        break
-        
+                # Assign required number of freelancers to this shift
+                for i in range(required_count):
+                    assigned_shifts[available_for_shift[i]] = shift_time
+
         schedule.append({"Date": date.strftime("%d/%m/%Y"), **assigned_shifts})
 
-    df = pd.DataFrame(schedule)
-    df.to_excel("freelancer_schedule.xlsx", index=False)
-    return "Excel已成功生成!"
+    # Export to Excel if requested
+    if export_to_excel:
+        df = pd.DataFrame(schedule)
+        df.to_excel("freelancer_schedule.xlsx", index=False)
+
+    return warnings
+
+
 
 def import_from_excel(file_path):
     df = pd.read_excel(file_path)
@@ -159,8 +159,49 @@ def export_availability_to_excel(availability):
                 data.append({"Date": date, "Employee": employee_name, "Shift": shift})
     
     df = pd.DataFrame(data)
-    df.to_excel("availability_export.xlsx", index=False)
+    # Set Excel options to prevent excessive whitespace
+    df.to_excel("availability_export.xlsx", index=False, engine='openpyxl')
     return "Availability exported successfully to Excel!"
+
 
 def clear_availability(start_date, employees):
     return init_availability(start_date, employees)
+
+# def validate_schedule(availability):
+#     warnings = []
+#     dates = sorted(availability.keys())
+    
+#     for date in dates:
+#         day_type = 'weekend' if datetime.strptime(date, "%Y-%m-%d").weekday() >= 5 else 'weekday'
+#         shift_requirements = SHIFT_REQUIREMENTS[day_type]
+        
+#         # Track assigned shifts
+#         assigned_shifts = {name: 'off' for name in availability[date].keys()}
+        
+#         for shift_name, required_count in shift_requirements.items():
+#             shift_time = SHIFT_MAPPING[shift_name]
+            
+#             # Find freelancers available for this shift who haven't been assigned yet
+#             available_for_shift = [
+#                 name for name, shifts in availability[date].items()
+#                 if shift_time in shifts and assigned_shifts[name] == 'off'
+#             ]
+            
+#             # Simulate assigning freelancers to this shift
+#             assigned_count = 0
+#             while assigned_count < required_count and available_for_shift:
+#                 freelancer_name = available_for_shift.pop(0)
+#                 assigned_shifts[freelancer_name] = shift_time
+#                 assigned_count += 1
+            
+#             # Check if enough freelancers were assigned
+#             if assigned_count < required_count:
+#                 warnings.append(
+#                     f"Warning: Shift {shift_name} on {date} is understaffed. "
+#                     f"Required: {required_count}, Assigned: {assigned_count}."
+#                 )
+    
+#     return warnings
+
+
+
