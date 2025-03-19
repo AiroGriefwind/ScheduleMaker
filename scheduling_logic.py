@@ -9,10 +9,25 @@ class Employee:
         self.employee_type = employee_type
         
     def get_available_shifts(self):
-        pass
-    
+        # Get shifts based on employee type from the rule storage
+        if self.employee_type in ROLE_RULES:
+            rule = ROLE_RULES[self.employee_type]
+            if rule["rule_type"] == "shift_based":
+                # For shift-based employees like freelancers
+                weekday_shifts = list(rule["shifts"]["weekday"].values())
+                weekend_shifts = list(rule["shifts"]["weekend"].values())
+                return list(set(weekday_shifts + weekend_shifts))
+            elif rule["rule_type"] == "fixed_time":
+                # For fixed-time employees like senior editors
+                shifts = [rule["default_shift"]]
+                if "special_duty" in rule:
+                    shifts.append(rule["special_duty"]["shift"])
+                return shifts
+        return []  # Default if no rules found
+        
     def get_display_name(self):
         return f"{self.name}({self.employee_type[0]})"
+
 
 class Freelancer(Employee):
     def __init__(self, name):
@@ -58,79 +73,95 @@ SHIFT_COLORS = {
     "10-19": (255, 228, 181),  # Light orange
     "15-24": (176, 224, 230)   # Light blue
 }
-RULES = {
-    "weekday": {"early": "7-16", "day": "10-19", "night": "15-24"},
-    "weekend": {"early": "7-16", "day": "10-19", "night": "15-24"}
+# New centralized role-based rules storage
+ROLE_RULES = {
+    "Freelancer": {
+        "rule_type": "shift_based",
+        "shifts": {
+            "weekday": {"early": "7-16", "day": "10-19", "night": "15-24"},
+            "weekend": {"early": "7-16", "day": "10-19", "night": "15-24"}
+        },
+        "requirements": {
+            "weekday": {"early": 1, "day": 1, "night": 2},
+            "weekend": {"early": 1, "day": 1, "night": 1}
+        }
+    },
+    "SeniorEditor": {
+        "rule_type": "fixed_time",
+        "default_shift": "13-22",
+        "special_duty": {
+            "frequency": "monthly",
+            "day_of_month": 1,  # 1st day of each month
+            "shift": "7-16"
+        }
+    }
+    # Other roles can be added here with their specific rules
 }
 
-SHIFT_REQUIREMENTS = {
-        "weekday": {"early": 1, "day": 1, "night": 2},
-        "weekend": {"early": 1, "day": 1, "night": 1}
-    }
-    
-SHIFT_MAPPING = {
-        "early": "7-16",
-        "day": "10-19",
-        "night": "15-24"
-    }
-
-# Generate schedule with weighted randomization
 def generate_schedule(availability, start_date, export_to_excel=True):
     date_strings = sorted(availability.keys())
     dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
     schedule = []
     warnings = []
 
-    # Track shift counts for fairness
+    # Track shift counts for fairness across freelancers
     shift_counts = {name: {"early": 0, "day": 0, "night": 0} for name in FREELANCERS}
 
     for date in dates:
         day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
         assigned_shifts = {name: 'off' for name in FREELANCERS}
 
+        # Get the rules for freelancers from ROLE_RULES
+        freelancer_rules = ROLE_RULES["Freelancer"]
+        shifts = freelancer_rules["shifts"][day_type]
+        shift_requirements = freelancer_rules["requirements"][day_type]
+
         # Sort shifts by staffing requirements (highest first)
         shifts_by_priority = sorted(
-            SHIFT_REQUIREMENTS[day_type].items(),
+            shift_requirements.items(),
             key=lambda x: x[1],
             reverse=True
         )
 
         for shift_name, required_count in shifts_by_priority:
-            shift_time = SHIFT_MAPPING[shift_name]
+            shift_time = shifts[shift_name]
 
-            # Calculate weights for freelancers
+            # Calculate weights for freelancers based on availability and past assignments
             freelancer_weights = {}
             for name in FREELANCERS:
                 if shift_time in availability[date.strftime("%Y-%m-%d")][name] and assigned_shifts[name] == 'off':
-                    # Higher weight for fewer available shifts and fewer past assignments
                     available_shifts = len(availability[date.strftime("%Y-%m-%d")][name])
                     past_assignments = shift_counts[name][shift_name]
                     freelancer_weights[name] = (1 / (available_shifts + 1)) + (1 / (past_assignments + 1))
 
-            # Randomly select freelancers based on weights
+            # Sort freelancers by calculated weights
             sorted_freelancers = sorted(freelancer_weights.items(), key=lambda x: x[1], reverse=True)
             assigned_count = 0
 
+            # Assign shifts to freelancers based on weights
             for name, _ in sorted_freelancers:
                 if assigned_count < required_count:
                     assigned_shifts[name] = shift_time
                     shift_counts[name][shift_name] += 1
                     assigned_count += 1
 
+            # Handle understaffing warnings
             if assigned_count < required_count:
                 warnings.append(
                     f"Warning: Shift {shift_name} on {date.strftime('%Y-%m-%d')} is understaffed. "
                     f"Required: {required_count}, Assigned: {assigned_count}."
                 )
 
+        # Add the day's schedule to the overall schedule
         schedule.append({"Date": date.strftime("%d/%m/%Y"), **assigned_shifts})
 
-    # Export to Excel if requested
+    # Export schedule to Excel if requested
     if export_to_excel:
         df = pd.DataFrame(schedule)
         df.to_excel("freelancer_schedule_weighted_randomization.xlsx", index=False)
 
     return warnings
+
 
 
 
