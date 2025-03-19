@@ -107,22 +107,27 @@ def generate_schedule(availability, start_date, export_to_excel=True):
     # Track shift counts for fairness across freelancers
     shift_counts = {name: {"early": 0, "day": 0, "night": 0} for name in FREELANCERS}
 
+    # Get rules for freelancers and senior editors from ROLE_RULES
+    freelancer_rules = ROLE_RULES["Freelancer"]
+    senior_editor_rules = ROLE_RULES["SeniorEditor"]
+    senior_editor_shift = senior_editor_rules["default_shift"]
+    senior_editor_special_duty = senior_editor_rules.get("special_duty", None)
+
     for date in dates:
         day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
         assigned_shifts = {name: 'off' for name in FREELANCERS}
-
-        # Get the rules for freelancers from ROLE_RULES
-        freelancer_rules = ROLE_RULES["Freelancer"]
-        shifts = freelancer_rules["shifts"][day_type]
-        shift_requirements = freelancer_rules["requirements"][day_type]
+        senior_editor_shifts = {}
 
         # Sort shifts by staffing requirements (highest first)
+        shifts = freelancer_rules["shifts"][day_type]
+        shift_requirements = freelancer_rules["requirements"][day_type]
         shifts_by_priority = sorted(
             shift_requirements.items(),
             key=lambda x: x[1],
             reverse=True
         )
 
+        # Assign shifts to freelancers based on rules and availability
         for shift_name, required_count in shifts_by_priority:
             shift_time = shifts[shift_name]
 
@@ -152,15 +157,26 @@ def generate_schedule(availability, start_date, export_to_excel=True):
                     f"Required: {required_count}, Assigned: {assigned_count}."
                 )
 
+        # Assign shifts to senior editors based on their rules
+        for name in [emp.get_display_name() for emp in EMPLOYEES if emp.employee_type == "SeniorEditor"]:
+            if senior_editor_special_duty and date.day == senior_editor_special_duty["day_of_month"]:
+                # Assign special duty shift on specific day of the month
+                senior_editor_shifts[name] = senior_editor_special_duty["shift"]
+            else:
+                # Assign default shift otherwise
+                senior_editor_shifts[name] = senior_editor_shift
+
         # Add the day's schedule to the overall schedule
-        schedule.append({"Date": date.strftime("%d/%m/%Y"), **assigned_shifts})
+        schedule_entry = {"Date": date.strftime("%d/%m/%Y"), **assigned_shifts, **senior_editor_shifts}
+        schedule.append(schedule_entry)
 
     # Export schedule to Excel if requested
     if export_to_excel:
         df = pd.DataFrame(schedule)
-        df.to_excel("freelancer_schedule_weighted_randomization.xlsx", index=False)
+        df.to_excel("schedule_with_senior_editors.xlsx", index=False)
 
     return warnings
+
 
 
 
@@ -205,41 +221,53 @@ def export_availability_to_excel(availability):
 def clear_availability(start_date, employees):
     return init_availability(start_date, employees)
 
-# def validate_schedule(availability):
-#     warnings = []
-#     dates = sorted(availability.keys())
+# Main logic for testing
+if __name__ == "__main__":
+    # Define start date for testing
+    start_date = datetime.strptime("2025-03-19", "%Y-%m-%d")
     
-#     for date in dates:
-#         day_type = 'weekend' if datetime.strptime(date, "%Y-%m-%d").weekday() >= 5 else 'weekday'
-#         shift_requirements = SHIFT_REQUIREMENTS[day_type]
-        
-#         # Track assigned shifts
-#         assigned_shifts = {name: 'off' for name in availability[date].keys()}
-        
-#         for shift_name, required_count in shift_requirements.items():
-#             shift_time = SHIFT_MAPPING[shift_name]
-            
-#             # Find freelancers available for this shift who haven't been assigned yet
-#             available_for_shift = [
-#                 name for name, shifts in availability[date].items()
-#                 if shift_time in shifts and assigned_shifts[name] == 'off'
-#             ]
-            
-#             # Simulate assigning freelancers to this shift
-#             assigned_count = 0
-#             while assigned_count < required_count and available_for_shift:
-#                 freelancer_name = available_for_shift.pop(0)
-#                 assigned_shifts[freelancer_name] = shift_time
-#                 assigned_count += 1
-            
-#             # Check if enough freelancers were assigned
-#             if assigned_count < required_count:
-#                 warnings.append(
-#                     f"Warning: Shift {shift_name} on {date} is understaffed. "
-#                     f"Required: {required_count}, Assigned: {assigned_count}."
-#                 )
+    # Load existing availability from JSON
+    availability = load_data()  # Assumes load_data() reads from 'availability.json'
     
-#     return warnings
+    # Add Daisy as a Senior Editor to the employee list
+    daisy = Employee(name="Daisy", employee_type="SeniorEditor")
+    EMPLOYEES.append(daisy)
+    print("Employees after adding Daisy:")
+    for employee in EMPLOYEES:
+        print(employee.get_display_name())
+    # Update availability for Daisy while preserving existing data
+    for date in availability.keys():
+        day = datetime.strptime(date, "%Y-%m-%d").day
+        if daisy.get_display_name() not in availability[date]:
+            availability[date][daisy.get_display_name()] = []  # Ensure Daisy's key exists
+        
+        if day == 1:  # Special duty day (e.g., 1st of each month)
+            availability[date][daisy.get_display_name()] = ["7-16"]
+        else:
+            availability[date][daisy.get_display_name()] = ["13-22"]
+    
+    # Save updated availability back to JSON
+    save_data(availability)  # Assumes save_data() writes to 'availability.json'
+    export_availability_to_excel(availability)
+    # Generate schedule based on updated availability
+    warnings = generate_schedule(availability, start_date, export_to_excel=True)
+    
+    # Print warnings if there are any
+    if warnings:
+        print("Warnings:")
+        for warning in warnings:
+            print(warning)
+    else:
+        print("Schedule generated successfully!")
+
+
+    
+
+
+
+
+
+
 
 
 
