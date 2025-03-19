@@ -74,13 +74,15 @@ SHIFT_MAPPING = {
         "night": "15-24"
     }
 
+# Generate schedule with weighted randomization
 def generate_schedule(availability, start_date, export_to_excel=True):
     date_strings = sorted(availability.keys())
     dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
     schedule = []
     warnings = []
 
-    freelancer_names = [e.get_display_name() for e in EMPLOYEES if isinstance(e, Freelancer)]
+    # Track shift counts for fairness
+    shift_counts = {name: {"early": 0, "day": 0, "night": 0} for name in FREELANCERS}
 
     for date in dates:
         day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
@@ -95,33 +97,38 @@ def generate_schedule(availability, start_date, export_to_excel=True):
 
         for shift_name, required_count in shifts_by_priority:
             shift_time = SHIFT_MAPPING[shift_name]
-            # Find freelancers available for this shift who haven't been assigned yet
-            available_for_shift = [
-                name for name in FREELANCERS 
-                if shift_time in availability[date.strftime("%Y-%m-%d")][name]
-                and assigned_shifts[name] == 'off'
-            ]
 
-            if len(available_for_shift) < required_count:
-                # Not enough freelancers available for this shift
+            # Calculate weights for freelancers
+            freelancer_weights = {}
+            for name in FREELANCERS:
+                if shift_time in availability[date.strftime("%Y-%m-%d")][name] and assigned_shifts[name] == 'off':
+                    # Higher weight for fewer available shifts and fewer past assignments
+                    available_shifts = len(availability[date.strftime("%Y-%m-%d")][name])
+                    past_assignments = shift_counts[name][shift_name]
+                    freelancer_weights[name] = (1 / (available_shifts + 1)) + (1 / (past_assignments + 1))
+
+            # Randomly select freelancers based on weights
+            sorted_freelancers = sorted(freelancer_weights.items(), key=lambda x: x[1], reverse=True)
+            assigned_count = 0
+
+            for name, _ in sorted_freelancers:
+                if assigned_count < required_count:
+                    assigned_shifts[name] = shift_time
+                    shift_counts[name][shift_name] += 1
+                    assigned_count += 1
+
+            if assigned_count < required_count:
                 warnings.append(
                     f"Warning: Shift {shift_name} on {date.strftime('%Y-%m-%d')} is understaffed. "
-                    f"Required: {required_count}, Available: {len(available_for_shift)}."
+                    f"Required: {required_count}, Assigned: {assigned_count}."
                 )
-                # Assign whoever is available
-                for freelancer_name in available_for_shift:
-                    assigned_shifts[freelancer_name] = shift_time
-            else:
-                # Assign required number of freelancers to this shift
-                for i in range(required_count):
-                    assigned_shifts[available_for_shift[i]] = shift_time
 
         schedule.append({"Date": date.strftime("%d/%m/%Y"), **assigned_shifts})
 
     # Export to Excel if requested
     if export_to_excel:
         df = pd.DataFrame(schedule)
-        df.to_excel("freelancer_schedule.xlsx", index=False)
+        df.to_excel("freelancer_schedule_weighted_randomization.xlsx", index=False)
 
     return warnings
 
