@@ -1,12 +1,13 @@
 import sys
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QHBoxLayout, QPushButton, QComboBox, QLabel,
-                              QMessageBox, QGridLayout, QScrollArea)
+                              QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu)
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QPalette
 from scheduling_logic import (EMPLOYEES, FREELANCERS, SHIFT_COLORS, 
                               load_data, save_data, init_availability, 
                                generate_schedule, import_from_excel, 
+                               edit_employee, load_employees, ROLE_RULES, add_employee, delete_employee,
                               export_availability_to_excel, clear_availability)
 from datetime import datetime
 
@@ -35,7 +36,7 @@ class AvailabilityEditor(QMainWindow):
         control_layout = QHBoxLayout()
         self.employee_combo = QComboBox()
         self.employee_combo.addItems(self.employee_names)
-        self.employee_combo.currentTextChanged.connect(self.employee_changed)
+        self.employee_combo.currentTextChanged.connect(self.select_employee)
         control_layout.addWidget(QLabel("Select Employee:"))
         control_layout.addWidget(self.employee_combo)
         
@@ -71,6 +72,51 @@ class AvailabilityEditor(QMainWindow):
         validate_btn = QPushButton("Validate Schedule")
         validate_btn.clicked.connect(self.validate_schedule)
         button_layout.addWidget(validate_btn)
+
+        # Add a control to filter by role
+        self.role_combo = QComboBox()
+        self.role_combo.addItems(["All"] + list(ROLE_RULES.keys()))
+        self.role_combo.currentTextChanged.connect(self.role_changed)
+
+        self.employee_list = QWidget()
+        self.employee_list_layout = QVBoxLayout(self.employee_list)
+
+        control_layout.addWidget(QLabel("Select Role:"))
+        control_layout.addWidget(self.role_combo)
+        control_layout.addWidget(QLabel("Select Employee:"))
+        control_layout.addWidget(self.employee_list)
+
+        add_btn = QPushButton("Add Employee")
+        add_btn.clicked.connect(self.add_new_employee)
+        button_layout.addWidget(add_btn)
+
+    def add_new_employee(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add New Employee")
+            
+        layout = QVBoxLayout(dialog)
+            
+        name_input = QLineEdit()
+        role_input = QComboBox()
+        role_input.addItems(list(ROLE_RULES.keys()))
+            
+        layout.addWidget(QLabel("Name:"))
+        layout.addWidget(name_input)
+        layout.addWidget(QLabel("Role:"))
+        layout.addWidget(role_input)
+            
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(lambda: self.save_new_employee(dialog, name_input.text(), role_input.currentText()))
+            
+        layout.addWidget(save_btn)
+            
+        dialog.exec_()
+
+    def save_new_employee(self, dialog, name, role):
+        add_employee(name, role)
+        self.employees = load_employees()
+        self.update_employee_list(self.role_combo.currentText())
+        dialog.accept()
 
 
     def create_day_widget(self, date_str):
@@ -135,9 +181,78 @@ class AvailabilityEditor(QMainWindow):
             save_data(self.availability)
             self.update_calendar()
 
-    def employee_changed(self, name):
+    def role_changed(self, role):
+        self.update_employee_list(role)
+
+    def update_employee_list(self, role):
+        # Clear existing items in the list
+        for i in reversed(range(self.employee_list_layout.count())):
+            self.employee_list_layout.itemAt(i).widget().setParent(None)
+
+        # Filter employees by role
+        filtered_employees = [emp.get_display_name() for emp in self.employees if role == "All" or emp.employee_type == role]
+
+        # Update the button connection in the employee list creation loop
+        for name in filtered_employees:
+            btn = QPushButton(name)
+            btn.clicked.connect(lambda _, n=name: self.select_employee(n))
+            btn.setContextMenuPolicy(Qt.CustomContextMenu)
+            # Capture the button reference in the lambda
+            btn.customContextMenuRequested.connect(
+                lambda pos, btn=btn, n=name: self.show_context_menu(pos, btn, n)  # Modified line
+            )
+            self.employee_list_layout.addWidget(btn)
+
+
+    def select_employee(self, name):
         self.current_employee_name = name
         self.update_calendar()
+
+    def show_context_menu(self, pos, button, name):  # Modified signature
+        menu = QMenu()
+        edit_action = menu.addAction("Edit")
+        delete_action = menu.addAction("Delete")
+        
+        # Use the passed button reference instead of sender()
+        action = menu.exec_(button.mapToGlobal(pos))  # Critical fix
+        
+        if action == edit_action:
+            self.edit_employee(name)
+        elif action == delete_action:
+            self.confirm_delete(name)
+
+    def edit_employee(self, name):
+        old_employee = next((emp for emp in self.employees if emp.get_display_name() == name), None)
+        
+        if old_employee:
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Edit Employee")
+            
+            layout = QVBoxLayout(dialog)
+            
+            name_input = QLineEdit(old_employee.name)
+            role_input = QComboBox()
+            role_input.addItems(list(ROLE_RULES.keys()))
+            role_input.setCurrentText(old_employee.employee_type)
+            
+            layout.addWidget(QLabel("Name:"))
+            layout.addWidget(name_input)
+            layout.addWidget(QLabel("Role:"))
+            layout.addWidget(role_input)
+            
+            save_btn = QPushButton("Save")
+            save_btn.clicked.connect(lambda: self.save_edited_employee(dialog, old_employee.name, name_input.text(), role_input.currentText()))
+            
+            layout.addWidget(save_btn)
+            
+            dialog.exec_()
+
+    def save_edited_employee(self, dialog, old_name, new_name, new_role):
+        edit_employee(old_name, new_name, new_role)
+        self.employees = load_employees()
+        self.update_employee_list(self.role_combo.currentText())
+        dialog.accept()
+
 
     def save_data(self):
         save_data(self.availability)
@@ -195,6 +310,18 @@ class AvailabilityEditor(QMainWindow):
             save_data(self.availability)
             self.update_calendar()
             QMessageBox.information(self, "Cleared", "All availability data has been cleared!")
+    def confirm_delete(self, name):
+        reply = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Are you sure you want to delete {name}?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            delete_employee(name)
+            self.employees = load_employees()
+            self.update_employee_list(self.role_combo.currentText())
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

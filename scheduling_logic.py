@@ -98,6 +98,38 @@ ROLE_RULES = {
     # Other roles can be added here with their specific rules
 }
 
+def add_employee(name, role):
+    new_employee = Employee(name=name, employee_type=role)
+    EMPLOYEES.append(new_employee)
+    save_employees()
+
+def edit_employee(old_name, new_name, new_role):
+    for employee in EMPLOYEES:
+        if employee.name == old_name:
+            employee.name = new_name
+            employee.employee_type = new_role
+            break
+    save_employees()
+
+def delete_employee(name):
+    global EMPLOYEES
+    EMPLOYEES = [employee for employee in EMPLOYEES if employee.name != name]
+    save_employees()
+
+def save_employees():
+    with open('employees.json', 'w') as f:
+        json.dump([{"name": emp.name, "role": emp.employee_type} for emp in EMPLOYEES], f)
+
+def load_employees():
+    try:
+        with open('employees.json', 'r') as f:
+            data = json.load(f)
+            return [Employee(emp["name"], emp["role"]) for emp in data]
+    except FileNotFoundError:
+        return init_employees()
+
+
+
 def generate_schedule(availability, start_date, export_to_excel=True):
     """
     Main function to generate schedules for all employee types.
