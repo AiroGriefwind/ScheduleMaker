@@ -99,26 +99,39 @@ ROLE_RULES = {
 }
 
 def generate_schedule(availability, start_date, export_to_excel=True):
+    """
+    Main function to generate schedules for all employee types.
+    Delegates schedule generation to specific functions based on employee type.
+    """
+    warnings = []
+    schedule = []
+    
+    # Generate schedules for each employee type
+    warnings.extend(generate_freelancer_schedule(availability, start_date, schedule))
+    warnings.extend(generate_senior_editor_schedule(availability, start_date, schedule))
+    
+    # Export schedule to Excel if requested
+    if export_to_excel:
+        df = pd.DataFrame(schedule)
+        df.to_excel("schedule_with_senior_editors.xlsx", index=False)
+    
+    return warnings
+
+def generate_freelancer_schedule(availability, start_date, schedule):
+    """
+    Generates schedules for freelancers based on their rules and availability.
+    """
+    warnings = []
     date_strings = sorted(availability.keys())
     dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
-    schedule = []
-    warnings = []
-
-    # Track shift counts for fairness across freelancers
-    shift_counts = {name: {"early": 0, "day": 0, "night": 0} for name in FREELANCERS}
-
-    # Get rules for freelancers and senior editors from ROLE_RULES
+    
     freelancer_rules = ROLE_RULES["Freelancer"]
-    senior_editor_rules = ROLE_RULES["SeniorEditor"]
-    senior_editor_shift = senior_editor_rules["default_shift"]
-    senior_editor_special_duty = senior_editor_rules.get("special_duty", None)
-
+    shift_counts = {name: {"early": 0, "day": 0, "night": 0} for name in FREELANCERS}
+    
     for date in dates:
         day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
         assigned_shifts = {name: 'off' for name in FREELANCERS}
-        senior_editor_shifts = {}
-
-        # Sort shifts by staffing requirements (highest first)
+        
         shifts = freelancer_rules["shifts"][day_type]
         shift_requirements = freelancer_rules["requirements"][day_type]
         shifts_by_priority = sorted(
@@ -126,59 +139,75 @@ def generate_schedule(availability, start_date, export_to_excel=True):
             key=lambda x: x[1],
             reverse=True
         )
-
-        # Assign shifts to freelancers based on rules and availability
+        
         for shift_name, required_count in shifts_by_priority:
             shift_time = shifts[shift_name]
-
-            # Calculate weights for freelancers based on availability and past assignments
             freelancer_weights = {}
+            
             for name in FREELANCERS:
                 if shift_time in availability[date.strftime("%Y-%m-%d")][name] and assigned_shifts[name] == 'off':
                     available_shifts = len(availability[date.strftime("%Y-%m-%d")][name])
                     past_assignments = shift_counts[name][shift_name]
                     freelancer_weights[name] = (1 / (available_shifts + 1)) + (1 / (past_assignments + 1))
-
-            # Sort freelancers by calculated weights
+            
             sorted_freelancers = sorted(freelancer_weights.items(), key=lambda x: x[1], reverse=True)
             assigned_count = 0
-
-            # Assign shifts to freelancers based on weights
+            
             for name, _ in sorted_freelancers:
                 if assigned_count < required_count:
                     assigned_shifts[name] = shift_time
                     shift_counts[name][shift_name] += 1
                     assigned_count += 1
-
-            # Handle understaffing warnings
+            
             if assigned_count < required_count:
                 warnings.append(
                     f"Warning: Shift {shift_name} on {date.strftime('%Y-%m-%d')} is understaffed. "
                     f"Required: {required_count}, Assigned: {assigned_count}."
                 )
-
-        # Assign shifts to senior editors based on their rules
-        for name in [emp.get_display_name() for emp in EMPLOYEES if emp.employee_type == "SeniorEditor"]:
-            if senior_editor_special_duty and date.day == senior_editor_special_duty["day_of_month"]:
-                # Assign special duty shift on specific day of the month
-                senior_editor_shifts[name] = senior_editor_special_duty["shift"]
-            else:
-                # Assign default shift otherwise
-                senior_editor_shifts[name] = senior_editor_shift
-
-        # Add the day's schedule to the overall schedule
-        schedule_entry = {"Date": date.strftime("%d/%m/%Y"), **assigned_shifts, **senior_editor_shifts}
+        
+        schedule_entry = {"Date": date.strftime("%d/%m/%Y"), **assigned_shifts}
         schedule.append(schedule_entry)
-
-    # Export schedule to Excel if requested
-    if export_to_excel:
-        df = pd.DataFrame(schedule)
-        df.to_excel("schedule_with_senior_editors.xlsx", index=False)
-
+    
     return warnings
 
-
-
+def generate_senior_editor_schedule(availability, start_date, schedule):
+    """
+    Generates schedules for senior editors based on their rules and availability.
+    Integrates senior editor shifts into existing schedule entries.
+    """
+    warnings = []
+    date_strings = sorted(availability.keys())
+    dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
+    
+    senior_editor_rules = ROLE_RULES["SeniorEditor"]
+    senior_editor_shift = senior_editor_rules["default_shift"]
+    senior_editor_special_duty = senior_editor_rules.get("special_duty", None)
+    
+    senior_editors = [emp.get_display_name() for emp in EMPLOYEES if emp.employee_type == "SeniorEditor"]
+    
+    for date in dates:
+        date_str = date.strftime("%d/%m/%Y")
+        senior_editor_shifts = {}
+        
+        # Assign shifts to senior editors
+        for name in senior_editors:
+            if senior_editor_special_duty and date.day == senior_editor_special_duty["day_of_month"]:
+                senior_editor_shifts[name] = senior_editor_special_duty["shift"]
+            else:
+                senior_editor_shifts[name] = senior_editor_shift
+        
+        # Find the existing entry in the schedule for this date
+        existing_entry = next((entry for entry in schedule if entry["Date"] == date_str), None)
+        
+        if existing_entry:
+            # Update the existing entry with senior editor shifts
+            existing_entry.update(senior_editor_shifts)
+        else:
+            # Create a new entry if no existing entry is found (should not happen)
+            schedule_entry = {"Date": date_str, **senior_editor_shifts}
+            schedule.append(schedule_entry)
+    
+    return warnings
 
 
 def import_from_excel(file_path):
