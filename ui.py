@@ -28,71 +28,86 @@ class AvailabilityEditor(QMainWindow):
     def init_ui(self):
         self.setWindowTitle("Employee Availability Editor")
         self.setGeometry(100, 100, 1000, 600)
-        
+
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout(main_widget)
-        
+
+        # Control layout for dropdowns and buttons
         control_layout = QHBoxLayout()
         self.employee_combo = QComboBox()
         self.employee_combo.addItems(self.employee_names)
         self.employee_combo.currentTextChanged.connect(self.select_employee)
-        control_layout.addWidget(QLabel("Select Employee:"))
-        control_layout.addWidget(self.employee_combo)
-        
-        # Label to display current employee name
-        self.selected_employee_label = QLabel(f"Currently Selected: {self.current_employee_name}")
-        control_layout.addWidget(self.selected_employee_label)
 
+        # Role selection
+        self.role_combo = QComboBox()
+        self.role_combo.addItems(["All"] + list(ROLE_RULES.keys()))
+        self.role_combo.currentTextChanged.connect(self.role_changed)
+        control_layout.addWidget(QLabel("Select Role:"))
+        control_layout.addWidget(self.role_combo)
+
+        # Add employee list
+        self.employee_list = QWidget()
+        self.employee_list_layout = QVBoxLayout(self.employee_list)
+        control_layout.addWidget(QLabel("Select Employee:"))
+        control_layout.addWidget(self.employee_list)
+
+        layout.addLayout(control_layout)
+
+        # Create a container for the calendar and selected employee label
+        calendar_container = QVBoxLayout()
+
+        # Move "Currently Selected" label here
+        self.selected_employee_label = QLabel(f"Currently Selected: {self.current_employee_name}")
+        self.selected_employee_label.setAlignment(Qt.AlignmentFlag.AlignLeft)  # Align to top-left
+        calendar_container.addWidget(self.selected_employee_label)
+
+        # Scroll area for the calendar
         scroll = QScrollArea()
         self.calendar_widget = QWidget()
         self.calendar_layout = QGridLayout(self.calendar_widget)
         scroll.setWidget(self.calendar_widget)
         scroll.setWidgetResizable(True)
         
+        # Add scroll area to calendar container
+        calendar_container.addWidget(scroll)
+
+        # Add calendar container to main layout
+        layout.addLayout(calendar_container)
+
+        # Button layout for actions
         button_layout = QHBoxLayout()
+        
         save_btn = QPushButton("保存時間")
         save_btn.clicked.connect(self.save_data)
+        
         generate_btn = QPushButton("導出至Excel")
         generate_btn.clicked.connect(self.generate_schedule)
+        
         import_btn = QPushButton("從Excel導入")
         import_btn.clicked.connect(lambda: self.import_from_excel("availability_export.xlsx"))
+        
         export_btn = QPushButton("導出時間表至Excel")
         export_btn.clicked.connect(self.export_availability_to_excel)
+
         clear_btn = QPushButton("Clear Availability")
         clear_btn.clicked.connect(self.clear_availability)
-        
+
+        validate_btn = QPushButton("Validate Schedule")
+        validate_btn.clicked.connect(self.validate_schedule)
+
+        add_btn = QPushButton("Add Employee")
+        add_btn.clicked.connect(self.add_new_employee)
+
         button_layout.addWidget(save_btn)
         button_layout.addWidget(generate_btn)
         button_layout.addWidget(import_btn)
         button_layout.addWidget(export_btn)
         button_layout.addWidget(clear_btn)
-        
-        layout.addLayout(control_layout)
-        layout.addWidget(scroll)
-        layout.addLayout(button_layout)
-        
-        # Add a button to validate the schedule
-        validate_btn = QPushButton("Validate Schedule")
-        validate_btn.clicked.connect(self.validate_schedule)
         button_layout.addWidget(validate_btn)
-
-        # Add a control to filter by role
-        self.role_combo = QComboBox()
-        self.role_combo.addItems(["All"] + list(ROLE_RULES.keys()))
-        self.role_combo.currentTextChanged.connect(self.role_changed)
-
-        self.employee_list = QWidget()
-        self.employee_list_layout = QVBoxLayout(self.employee_list)
-
-        control_layout.addWidget(QLabel("Select Role:"))
-        control_layout.addWidget(self.role_combo)
-        control_layout.addWidget(QLabel("Select Employee:"))
-        control_layout.addWidget(self.employee_list)
-
-        add_btn = QPushButton("Add Employee")
-        add_btn.clicked.connect(self.add_new_employee)
         button_layout.addWidget(add_btn)
+
+        layout.addLayout(button_layout)
 
     def add_new_employee(self):
         dialog = QDialog(self)
