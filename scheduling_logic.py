@@ -56,7 +56,8 @@ def init_availability(start_date, employees):
 
 def save_data(data):
     with open('availability.json', 'w') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=4, separators=(',', ': '))  # Enhanced readability format
+
 
 def load_data():
     try:
