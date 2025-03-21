@@ -37,15 +37,13 @@ class Freelancer(Employee):
         return ["7-16", "10-19", "15-24"]
 
 def init_employees():
-    freelancers = [
-        Freelancer("Helen"),
-        Freelancer("Lili"),
-        Freelancer("Matthew"),
-        Freelancer("Ka"),
-        Freelancer("Kit"),
-        Freelancer("Paul")
-    ]
-    return freelancers
+    try:
+        with open('employees.json', 'r') as f:
+            data = json.load(f)
+            return [Employee(emp['name'], emp['role']) for emp in data]
+    except FileNotFoundError:
+        return []  # Return an empty list if the file is not found
+
 
 def init_availability(start_date, employees):
     return {
@@ -99,6 +97,18 @@ ROLE_RULES = {
     # Other roles can be added here with their specific rules
 }
 
+def load_employees():
+    try:
+        with open('employees.json', 'r') as f:
+            data = json.load(f)
+            return [Employee(emp["name"], emp["role"]) for emp in data]
+    except FileNotFoundError:
+        return init_employees()
+
+def save_employees():
+    with open('employees.json', 'w') as f:
+        json.dump([{"name": emp.name, "role": emp.employee_type} for emp in EMPLOYEES], f)
+
 def add_employee(name, role):
     new_employee = Employee(name=name, employee_type=role)
     EMPLOYEES.append(new_employee)
@@ -116,19 +126,6 @@ def delete_employee(name):
     global EMPLOYEES
     EMPLOYEES = [employee for employee in EMPLOYEES if employee.name != name]
     save_employees()
-
-def save_employees():
-    with open('employees.json', 'w') as f:
-        json.dump([{"name": emp.name, "role": emp.employee_type} for emp in EMPLOYEES], f)
-
-def load_employees():
-    try:
-        with open('employees.json', 'r') as f:
-            data = json.load(f)
-            return [Employee(emp["name"], emp["role"]) for emp in data]
-    except FileNotFoundError:
-        return init_employees()
-
 
 
 def generate_schedule(availability, start_date, export_to_excel=True):

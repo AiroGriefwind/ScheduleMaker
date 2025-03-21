@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu)
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QPalette
-from scheduling_logic import (EMPLOYEES, FREELANCERS, SHIFT_COLORS, 
+from scheduling_logic import (EMPLOYEES, Freelancer, SHIFT_COLORS, 
                               load_data, save_data, init_availability, 
                                generate_schedule, import_from_excel, 
                                edit_employee, load_employees, ROLE_RULES, add_employee, delete_employee,
@@ -15,8 +15,8 @@ class AvailabilityEditor(QMainWindow):
     def __init__(self, start_date=datetime(2025, 3, 17)):
         super().__init__()
         self.start_date = start_date
-        self.employees = EMPLOYEES
-        self.employee_names = FREELANCERS
+        self.employees = load_employees()  # Load employees from JSON
+        self.employee_names = [emp.get_display_name() for emp in self.employees if isinstance(emp, Freelancer)]
         self.current_employee_name = self.employee_names[0] if self.employee_names else ""
         
         loaded_data = load_data()
@@ -40,6 +40,10 @@ class AvailabilityEditor(QMainWindow):
         control_layout.addWidget(QLabel("Select Employee:"))
         control_layout.addWidget(self.employee_combo)
         
+        # Label to display current employee name
+        self.selected_employee_label = QLabel(f"Currently Selected: {self.current_employee_name}")
+        control_layout.addWidget(self.selected_employee_label)
+
         scroll = QScrollArea()
         self.calendar_widget = QWidget()
         self.calendar_layout = QGridLayout(self.calendar_widget)
@@ -192,21 +196,33 @@ class AvailabilityEditor(QMainWindow):
         # Filter employees by role
         filtered_employees = [emp.get_display_name() for emp in self.employees if role == "All" or emp.employee_type == role]
 
-        # Update the button connection in the employee list creation loop
         for name in filtered_employees:
             btn = QPushButton(name)
             btn.clicked.connect(lambda _, n=name: self.select_employee(n))
+
+            # Highlight the currently selected employee
+            if name == self.current_employee_name:
+                btn.setStyleSheet("background-color: lightblue; font-weight: bold;")
+            else:
+                btn.setStyleSheet("")  # Reset style for non-selected employees
+
             btn.setContextMenuPolicy(Qt.CustomContextMenu)
-            # Capture the button reference in the lambda
             btn.customContextMenuRequested.connect(
-                lambda pos, btn=btn, n=name: self.show_context_menu(pos, btn, n)  # Modified line
+                lambda pos, btn=btn, n=name: self.show_context_menu(pos, btn, n)
             )
             self.employee_list_layout.addWidget(btn)
 
 
+
+
+
     def select_employee(self, name):
         self.current_employee_name = name
-        self.update_calendar()
+        self.selected_employee_label.setText(f"Currently Selected: {self.current_employee_name}")  # Update label
+        self.update_calendar()  # Refresh calendar view
+        self.update_employee_list(self.role_combo.currentText())  # Refresh employee list to highlight selection
+
+
 
     def show_context_menu(self, pos, button, name):  # Modified signature
         menu = QMenu()
