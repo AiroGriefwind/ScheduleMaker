@@ -25,8 +25,6 @@ class Employee:
                 return shifts
         return []  # Default if no rules found
         
-    def get_display_name(self):
-        return f"{self.name}({self.employee_type[0]})"
 
 
 class Freelancer(Employee):
@@ -62,7 +60,7 @@ def init_employees():
 def init_availability(start_date, employees):
     return {
         (start_date + timedelta(days=i)).strftime("%Y-%m-%d"): {
-            employee.get_display_name(): [] for employee in employees
+            employee.name: [] for employee in employees  # Use employee.name
         } for i in range(7)
     }
 
@@ -84,7 +82,7 @@ def load_data():
 
 # Constants
 EMPLOYEES = init_employees()
-FREELANCERS = [employee.get_display_name() for employee in EMPLOYEES if isinstance(employee, Freelancer)]
+FREELANCERS = [employee.name for employee in EMPLOYEES if isinstance(employee, Freelancer)]
 SHIFT_COLORS = {
     "7-16": (144, 238, 144),   # Light green
     "10-19": (255, 228, 181),  # Light orange
@@ -127,8 +125,8 @@ def sync_availability():
     employees = load_employees()
     availability = load_data()
     
-    # Get current employee display names
-    current_employees = {e.get_display_name() for e in employees}
+    # Get current employee names
+    current_employees = {e.name for e in employees}  # Use e.name
     
     # Update availability for each date
     for date in availability:
@@ -139,9 +137,8 @@ def sync_availability():
                 
         # Add new employees
         for emp in employees:
-            display_name = emp.get_display_name()
-            if display_name not in availability[date]:
-                availability[date][display_name] = []
+            if emp.name not in availability[date]:  # Use emp.name
+                availability[date][emp.name] = []  # Use emp.name
     
     save_data(availability)
 
@@ -188,7 +185,7 @@ def add_employee(name, role):
         availability = init_availability(datetime.now(), [new_emp])
     else:
         for date in availability:
-            availability[date][new_emp.get_display_name()] = []
+            availability[date][new_emp.name] = [] # Use emp.name
     save_data(availability)
     
     return new_emp
@@ -197,26 +194,42 @@ def edit_employee(old_name, new_name, new_role):
     # Find and update employee
     for emp in EMPLOYEES:
         if emp.name == old_name:
-            old_display = emp.get_display_name()
             emp.name = new_name
             emp.employee_type = new_role
-            new_display = emp.get_display_name()
             break
 
     # Update availability records
     availability = load_data()
     for date in availability:
-        if old_display in availability[date]:
-            availability[date][new_display] = availability[date].pop(old_display)
+        if old_name in availability[date]:  # Use old_name
+            availability[date][new_name] = availability[date].pop(old_name)  # Use new_name and old_name
     save_data(availability)
     save_employees()  # Persist changes to employees.json
     sync_availability()  # Ensure availability is in sync with employees
 
-
 def delete_employee(name):
     global EMPLOYEES
-    EMPLOYEES = [employee for employee in EMPLOYEES if employee.name != name]
-    save_employees()
+    # Find the employee to delete
+    employee_to_delete = next((emp for emp in EMPLOYEES if emp.name == name), None)
+
+    if employee_to_delete:
+        # Remove employee from EMPLOYEES list
+        EMPLOYEES.remove(employee_to_delete)
+
+        # Save the updated employee list to JSON
+        save_employees()
+
+        # Update availability data
+        availability = load_data()
+        for date in availability:
+            if employee_to_delete.name in availability[date]:  # Use employee_to_delete.name
+                del availability[date][employee_to_delete.name]  # Use employee_to_delete.name
+        save_data(availability)
+    else:
+        print(f"Employee with name {name} not found.")
+
+
+
 
 def generate_schedule(availability, start_date, export_to_excel=True):
     """

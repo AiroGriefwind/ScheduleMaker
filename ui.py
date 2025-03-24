@@ -151,7 +151,7 @@ class AvailabilityEditor(QMainWindow):
         day_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         day_layout.addWidget(day_label)
         
-        current_employee = next((e for e in self.employees if e.get_display_name() == self.current_employee_name), None)
+        current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
         
         if current_employee:
             available_shifts = current_employee.get_available_shifts()
@@ -213,7 +213,7 @@ class AvailabilityEditor(QMainWindow):
             self.employee_list_layout.itemAt(i).widget().setParent(None)
 
         # Filter employees by role
-        filtered_employees = [emp.get_display_name() for emp in self.employees if role == "All" or emp.employee_type == role]
+        filtered_employees = [emp.name for emp in self.employees if role == "All" or emp.employee_type == role]
 
         for name in filtered_employees:
             btn = QPushButton(name)
@@ -230,19 +230,12 @@ class AvailabilityEditor(QMainWindow):
                 lambda pos, btn=btn, n=name: self.show_context_menu(pos, btn, n)
             )
             self.employee_list_layout.addWidget(btn)
-
-
-
-
-
+    
     def select_employee(self, name):
         self.current_employee_name = name
         self.selected_employee_label.setText(f"Currently Selected: {self.current_employee_name}")  # Update label
         self.update_calendar()  # Refresh calendar view
         self.update_employee_list(self.role_combo.currentText())  # Refresh employee list to highlight selection
-
-
-
 
     def show_context_menu(self, pos, button, name):  # Modified signature
         menu = QMenu()
@@ -256,6 +249,8 @@ class AvailabilityEditor(QMainWindow):
             self.edit_employee(name)
         elif action == delete_action:
             self.confirm_delete(name)
+
+
 
     def edit_employee(self, name):
         old_employee = next((emp for emp in self.employees if emp.get_display_name() == name), None)
@@ -349,6 +344,7 @@ class AvailabilityEditor(QMainWindow):
             save_data(self.availability)
             self.update_calendar()
             QMessageBox.information(self, "Cleared", "All availability data has been cleared!")
+        
     def confirm_delete(self, name):
         reply = QMessageBox.question(
             self,
@@ -359,8 +355,17 @@ class AvailabilityEditor(QMainWindow):
         
         if reply == QMessageBox.Yes:
             delete_employee(name)
+            
+            # Refresh data and UI components
             self.employees = load_employees()
-            self.update_employee_list(self.role_combo.currentText())
+            self.availability = load_data()
+            
+            self.update_employee_list(self.role_combo.currentText())  # Refresh employee list in UI
+            self.update_calendar()  # Refresh calendar view
+            
+            QMessageBox.information(self, "Success", f"Employee {name} deleted successfully.")
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
