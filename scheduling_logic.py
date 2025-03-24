@@ -210,6 +210,7 @@ def edit_employee(old_name, new_name, new_role):
             availability[date][new_display] = availability[date].pop(old_display)
     save_data(availability)
     save_employees()  # Persist changes to employees.json
+    sync_availability()  # Ensure availability is in sync with employees
 
 
 def delete_employee(name):
@@ -237,9 +238,6 @@ def generate_schedule(availability, start_date, export_to_excel=True):
     return warnings
 
 def generate_freelancer_schedule(availability, start_date, schedule):
-    """
-    Generates schedules for freelancers based on their rules and availability.
-    """
     warnings = []
     date_strings = sorted(availability.keys())
     dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
@@ -262,32 +260,35 @@ def generate_freelancer_schedule(availability, start_date, schedule):
         for shift_name, required_count in shifts_by_priority:
             shift_time = shifts[shift_name]
             freelancer_weights = {}
-            
+            date_str = date.strftime("%Y-%m-%d")
             for name in FREELANCERS:
-                if shift_time in availability[date.strftime("%Y-%m-%d")][name] and assigned_shifts[name] == 'off':
-                    available_shifts = len(availability[date.strftime("%Y-%m-%d")][name])
-                    past_assignments = shift_counts[name][shift_name]
-                    freelancer_weights[name] = (1 / (available_shifts + 1)) + (1 / (past_assignments + 1))
-            
+                if name in availability[date_str]: # Ensure name exists in availability
+                    if shift_time in availability[date_str][name] and assigned_shifts[name] == 'off':
+                        available_shifts = len(availability[date_str][name])
+                        past_assignments = shift_counts[name][shift_name]
+                        freelancer_weights[name] = (1 / (available_shifts + 1)) + (1 / (past_assignments + 1))
+                else:
+                    warnings.append(f"Warning: {name} not found in availability for {date_str}")
             sorted_freelancers = sorted(freelancer_weights.items(), key=lambda x: x[1], reverse=True)
             assigned_count = 0
-            
+        
             for name, _ in sorted_freelancers:
                 if assigned_count < required_count:
                     assigned_shifts[name] = shift_time
                     shift_counts[name][shift_name] += 1
                     assigned_count += 1
-            
+        
             if assigned_count < required_count:
                 warnings.append(
                     f"Warning: Shift {shift_name} on {date.strftime('%Y-%m-%d')} is understaffed. "
                     f"Required: {required_count}, Assigned: {assigned_count}."
                 )
-        
+    
         schedule_entry = {"Date": date.strftime("%d/%m/%Y"), **assigned_shifts}
         schedule.append(schedule_entry)
     
     return warnings
+
 
 def generate_senior_editor_schedule(availability, start_date, schedule):
     """
