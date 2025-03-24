@@ -36,14 +36,28 @@ class Freelancer(Employee):
     def get_available_shifts(self):
         return ["7-16", "10-19", "15-24"]
 
+class SeniorEditor(Employee):
+    def __init__(self, name):
+        super().__init__(name, "SeniorEditor")
+    
+    def get_available_shifts(self):
+        return ["13-22"]
+
 def init_employees():
     try:
         with open('employees.json', 'r') as f:
             data = json.load(f)
-            return [Employee(emp['name'], emp['role']) for emp in data]
+            employees = []
+            for emp in data:
+                if emp['role'] == 'Freelancer':
+                    employees.append(Freelancer(emp['name']))  # ← Proper subclass instantiation
+                elif emp['role'] == 'SeniorEditor':
+                    employees.append(SeniorEditor(emp['name']))  # ← Add similar for other roles
+                else:
+                    employees.append(Employee(emp['name'], emp['role']))
+            return employees
     except FileNotFoundError:
-        return []  # Return an empty list if the file is not found
-
+        return []
 
 def init_availability(start_date, employees):
     return {
@@ -105,28 +119,94 @@ def load_employees():
     except FileNotFoundError:
         return init_employees()
 
+def sync_availability():
+    employees = load_employees()
+    availability = load_data()
+    
+    # Get current employee display names
+    current_employees = {e.get_display_name() for e in employees}
+    
+    # Update availability for each date
+    for date in availability:
+        # Remove deleted employees
+        for emp_name in list(availability[date].keys()):
+            if emp_name not in current_employees:
+                del availability[date][emp_name]
+                
+        # Add new employees
+        for emp in employees:
+            display_name = emp.get_display_name()
+            if display_name not in availability[date]:
+                availability[date][display_name] = []
+    
+    save_data(availability)
+
+def validate_synchronization():
+    employees = load_employees()
+    availability = load_data()
+    
+    assert len(employees) > 0, "No employees found"
+    
+    # Check all employees exist in availability
+    for emp in employees:
+        display_name = emp.get_display_name()
+        for date in availability:
+            assert display_name in availability[date], \
+                f"{display_name} missing from {date}"
+    
+    # Check for orphaned availability entries
+    all_displays = {emp.get_display_name() for emp in employees}
+    for date in availability:
+        for emp_name in availability[date]:
+            assert emp_name in all_displays, \
+                f"Orphaned entry: {emp_name} on {date}"
+
+
 def save_employees():
     with open('employees.json', 'w') as f:
-        json.dump([{"name": emp.name, "role": emp.employee_type} for emp in EMPLOYEES], f)
+        json.dump([{"name": emp.name, "role": emp.employee_type} for emp in EMPLOYEES], f, indent=4, separators=(',', ': '))
 
 def add_employee(name, role):
-    new_employee = Employee(name=name, employee_type=role)
-    EMPLOYEES.append(new_employee)
+    if role == 'Freelancer':
+        new_emp = Freelancer(name)
+    elif role == 'SeniorEditor':
+        new_emp = SeniorEditor(name)
+    else:
+        new_emp = Employee(name, role)
+    
+    EMPLOYEES.append(new_emp)
     save_employees()
+    
+    # Update availability for all dates
+    availability = load_data()
+    for date in availability:
+        availability[date][new_emp.get_display_name()] = []
+    save_data(availability)
+    
+    return new_emp
 
 def edit_employee(old_name, new_name, new_role):
-    for employee in EMPLOYEES:
-        if employee.name == old_name:
-            employee.name = new_name
-            employee.employee_type = new_role
+    # Find and update employee
+    for emp in EMPLOYEES:
+        if emp.name == old_name:
+            old_display = emp.get_display_name()
+            emp.name = new_name
+            emp.employee_type = new_role
+            new_display = emp.get_display_name()
             break
-    save_employees()
+            
+    # Update availability records
+    availability = load_data()
+    for date in availability:
+        if old_display in availability[date]:
+            availability[date][new_display] = availability[date].pop(old_display)
+    save_data(availability)
+
 
 def delete_employee(name):
     global EMPLOYEES
     EMPLOYEES = [employee for employee in EMPLOYEES if employee.name != name]
     save_employees()
-
 
 def generate_schedule(availability, start_date, export_to_excel=True):
     """
@@ -288,22 +368,22 @@ if __name__ == "__main__":
     # Load existing availability from JSON
     availability = load_data()  # Assumes load_data() reads from 'availability.json'
     
-    # Add Daisy as a Senior Editor to the employee list
-    daisy = Employee(name="Daisy", employee_type="SeniorEditor")
-    EMPLOYEES.append(daisy)
-    print("Employees after adding Daisy:")
+    # # Add Daisy as a Senior Editor to the employee list
+    # daisy = Employee(name="Daisy", employee_type="SeniorEditor")
+    # EMPLOYEES.append(daisy)
+    # print("Employees after adding Daisy:")
     for employee in EMPLOYEES:
         print(employee.get_display_name())
-    # Update availability for Daisy while preserving existing data
-    for date in availability.keys():
-        day = datetime.strptime(date, "%Y-%m-%d").day
-        if daisy.get_display_name() not in availability[date]:
-            availability[date][daisy.get_display_name()] = []  # Ensure Daisy's key exists
+    # # Update availability for Daisy while preserving existing data
+    # for date in availability.keys():
+    #     day = datetime.strptime(date, "%Y-%m-%d").day
+    #     if daisy.get_display_name() not in availability[date]:
+    #         availability[date][daisy.get_display_name()] = []  # Ensure Daisy's key exists
         
-        if day == 1:  # Special duty day (e.g., 1st of each month)
-            availability[date][daisy.get_display_name()] = ["7-16"]
-        else:
-            availability[date][daisy.get_display_name()] = ["13-22"]
+    #     if day == 1:  # Special duty day (e.g., 1st of each month)
+    #         availability[date][daisy.get_display_name()] = ["7-16"]
+    #     else:
+    #         availability[date][daisy.get_display_name()] = ["13-22"]
     
     # Save updated availability back to JSON
     save_data(availability)  # Assumes save_data() writes to 'availability.json'
@@ -318,15 +398,3 @@ if __name__ == "__main__":
             print(warning)
     else:
         print("Schedule generated successfully!")
-
-
-    
-
-
-
-
-
-
-
-
-
