@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor, QPalette
 from scheduling_logic import (EMPLOYEES, Freelancer, SHIFT_COLORS, 
                               load_data, save_data, init_availability, 
                                generate_schedule, import_from_excel, 
-                               edit_employee, load_employees, ROLE_RULES, add_employee, delete_employee,
+                               edit_employee, load_employees, ROLE_RULES, add_employee, delete_employee,sync_availability,
                               export_availability_to_excel, clear_availability)
 from datetime import datetime
 
@@ -131,11 +131,15 @@ class AvailabilityEditor(QMainWindow):
             
         dialog.exec_()
 
+    # Updated ui.py
     def save_new_employee(self, dialog, name, role):
         add_employee(name, role)
         self.employees = load_employees()
+        self.availability = load_data()  # Critical reload
         self.update_employee_list(self.role_combo.currentText())
+        self.update_calendar()  # Refresh UI components
         dialog.accept()
+
 
 
     def create_day_widget(self, date_str):
@@ -286,6 +290,7 @@ class AvailabilityEditor(QMainWindow):
 
 
     def save_data(self):
+        sync_availability()  # Force synchronization
         save_data(self.availability)
         QMessageBox.information(self, "Saved", "時間已成功保存!")
     

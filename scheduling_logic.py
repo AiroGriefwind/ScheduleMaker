@@ -67,8 +67,12 @@ def init_availability(start_date, employees):
     }
 
 def save_data(data):
-    with open('availability.json', 'w') as f:
-        json.dump(data, f, indent=4, separators=(',', ': '))  # Enhanced readability format
+    try:
+        with open('availability.json', 'w') as f:
+            json.dump(data, f, indent=4)
+    except IOError as e:
+        raise RuntimeError(f"File write failed: {str(e)}")[1]
+
 
 
 def load_data():
@@ -179,8 +183,12 @@ def add_employee(name, role):
     
     # Update availability for all dates
     availability = load_data()
-    for date in availability:
-        availability[date][new_emp.get_display_name()] = []
+    
+    if availability is None: # Ensures availability initialization handles null cases
+        availability = init_availability(datetime.now(), [new_emp])
+    else:
+        for date in availability:
+            availability[date][new_emp.get_display_name()] = []
     save_data(availability)
     
     return new_emp
