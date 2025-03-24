@@ -202,13 +202,14 @@ def edit_employee(old_name, new_name, new_role):
             emp.employee_type = new_role
             new_display = emp.get_display_name()
             break
-            
+
     # Update availability records
     availability = load_data()
     for date in availability:
         if old_display in availability[date]:
             availability[date][new_display] = availability[date].pop(old_display)
     save_data(availability)
+    save_employees()  # Persist changes to employees.json
 
 
 def delete_employee(name):

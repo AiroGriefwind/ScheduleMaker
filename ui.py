@@ -243,6 +243,7 @@ class AvailabilityEditor(QMainWindow):
 
 
 
+
     def show_context_menu(self, pos, button, name):  # Modified signature
         menu = QMenu()
         edit_action = menu.addAction("Edit")
@@ -285,7 +286,9 @@ class AvailabilityEditor(QMainWindow):
     def save_edited_employee(self, dialog, old_name, new_name, new_role):
         edit_employee(old_name, new_name, new_role)
         self.employees = load_employees()
+        self.availability = load_data()  # Reload availability data
         self.update_employee_list(self.role_combo.currentText())
+        self.update_calendar() # Refresh the calendar
         dialog.accept()
 
 
