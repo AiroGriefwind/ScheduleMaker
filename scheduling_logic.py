@@ -150,13 +150,13 @@ def validate_synchronization():
     
     # Check all employees exist in availability
     for emp in employees:
-        display_name = emp.get_display_name()
+        display_name = emp.name
         for date in availability:
             assert display_name in availability[date], \
                 f"{display_name} missing from {date}"
     
     # Check for orphaned availability entries
-    all_displays = {emp.get_display_name() for emp in employees}
+    all_displays = {emp.name for emp in employees}
     for date in availability:
         for emp_name in availability[date]:
             assert emp_name in all_displays, \
@@ -316,7 +316,7 @@ def generate_senior_editor_schedule(availability, start_date, schedule):
     senior_editor_shift = senior_editor_rules["default_shift"]
     senior_editor_special_duty = senior_editor_rules.get("special_duty", None)
     
-    senior_editors = [emp.get_display_name() for emp in EMPLOYEES if emp.employee_type == "SeniorEditor"]
+    senior_editors = [emp.name for emp in EMPLOYEES if emp.employee_type == "SeniorEditor"]
     
     for date in dates:
         date_str = date.strftime("%d/%m/%Y")
@@ -390,23 +390,8 @@ if __name__ == "__main__":
     
     # Load existing availability from JSON
     availability = load_data()  # Assumes load_data() reads from 'availability.json'
-    
-    # # Add Daisy as a Senior Editor to the employee list
-    # daisy = Employee(name="Daisy", employee_type="SeniorEditor")
-    # EMPLOYEES.append(daisy)
-    # print("Employees after adding Daisy:")
     for employee in EMPLOYEES:
-        print(employee.get_display_name())
-    # # Update availability for Daisy while preserving existing data
-    # for date in availability.keys():
-    #     day = datetime.strptime(date, "%Y-%m-%d").day
-    #     if daisy.get_display_name() not in availability[date]:
-    #         availability[date][daisy.get_display_name()] = []  # Ensure Daisy's key exists
-        
-    #     if day == 1:  # Special duty day (e.g., 1st of each month)
-    #         availability[date][daisy.get_display_name()] = ["7-16"]
-    #     else:
-    #         availability[date][daisy.get_display_name()] = ["13-22"]
+        print(employee.name)
     
     # Save updated availability back to JSON
     save_data(availability)  # Assumes save_data() writes to 'availability.json'

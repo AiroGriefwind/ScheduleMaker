@@ -22,5 +22,13 @@
     {
         "name": "Paul",
         "role": "Freelancer"
+    },
+    {
+        "name": "Daisy",
+        "role": "SeniorEditor"
+    },
+    {
+        "name": "Tak",
+        "role": "SeniorEditor"
     }
 ]
