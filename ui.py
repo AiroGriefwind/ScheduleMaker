@@ -16,7 +16,7 @@ class AvailabilityEditor(QMainWindow):
         super().__init__()
         self.start_date = start_date
         self.employees = load_employees()  # Load employees from JSON
-        self.employee_names = [emp.get_display_name() for emp in self.employees if isinstance(emp, Freelancer)]
+        self.employee_names = [emp.name for emp in self.employees if isinstance(emp, Freelancer)]
         self.current_employee_name = self.employee_names[0] if self.employee_names else ""
         
         loaded_data = load_data()
@@ -46,11 +46,25 @@ class AvailabilityEditor(QMainWindow):
         control_layout.addWidget(QLabel("Select Role:"))
         control_layout.addWidget(self.role_combo)
 
-        # Add employee list
+        # Create a scroll area for employee list
+        employee_scroll = QScrollArea()
+        employee_scroll.setWidgetResizable(True)
+        employee_scroll.setFixedHeight(200)  # Set fixed height here
+        employee_scroll.setMinimumWidth(50)  # Minimum width
+        employee_scroll.setMaximumWidth(150)  # Maximum width
+
+        
+        # Create employee list widget and layout
         self.employee_list = QWidget()
         self.employee_list_layout = QVBoxLayout(self.employee_list)
+        self.employee_list_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Add employee list to scroll area
+        employee_scroll.setWidget(self.employee_list)
+        
+        # Add label and scroll area to control layout
         control_layout.addWidget(QLabel("Select Employee:"))
-        control_layout.addWidget(self.employee_list)
+        control_layout.addWidget(employee_scroll)
 
         layout.addLayout(control_layout)
 
@@ -253,7 +267,7 @@ class AvailabilityEditor(QMainWindow):
 
 
     def edit_employee(self, name):
-        old_employee = next((emp for emp in self.employees if emp.get_display_name() == name), None)
+        old_employee = next((emp for emp in self.employees if emp.name == name), None)
         
         if old_employee:
             dialog = QDialog(self)

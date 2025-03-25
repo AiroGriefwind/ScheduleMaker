@@ -40,6 +40,23 @@ class SeniorEditor(Employee):
     
     def get_available_shifts(self):
         return ["13-22"]
+class economics(Employee):
+    def __init__(self, name):
+        super().__init__(name, "economics")
+    
+    def get_available_shifts(self):
+        return ["10-19"]
+class Entertainment(Employee):
+    def __init__(self, name):
+        super().__init__(name, "Entertainment")
+    
+    def get_available_shifts(self):
+        return ["10-19"]
+class KoreanEntertainment(Employee):
+    def __init__(self, name):
+        super().__init__(name, "KoreanEntertainment")
+    def get_available_shifts(self):
+        return ["10-19"]
 
 def init_employees():
     try:
@@ -109,8 +126,20 @@ ROLE_RULES = {
             "day_of_month": 1,  # 1st day of each month
             "shift": "7-16"
         }
-    }
+    },
     # Other roles can be added here with their specific rules
+    "economic": {
+        "rule_type": "fixed_time",
+        "default_shift": "10-19",
+    },
+    "Entertainment": {
+        "rule_type": "fixed_time",
+        "default_shift": "10-19",
+    },
+    "KoreanEntertainment": {
+        "rule_type": "fixed_time",
+        "default_shift": "10-19",
+    }
 }
 
 def load_employees():

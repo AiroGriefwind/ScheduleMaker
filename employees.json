@@ -30,5 +30,33 @@
     {
         "name": "Tak",
         "role": "SeniorEditor"
+    },
+    {
+        "name": "Waiyee",
+        "role": "economic"
+    },
+    {
+        "name": "Cindy",
+        "role": "economic"
+    },
+    {
+        "name": "Ivy",
+        "role": "Entertainment"
+    },
+    {
+        "name": "Aasta",
+        "role": "Entertainment"
+    },
+    {
+        "name": "Carol",
+        "role": "Entertainment"
+    },
+    {
+        "name": "Jackie",
+        "role": "KoreanEntertainment"
+    },
+    {
+        "name": "Tiffany",
+        "role": "KoreanEntertainment"
     }
 ]
