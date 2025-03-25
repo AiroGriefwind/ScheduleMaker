@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu)
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QPalette
-from scheduling_logic import (EMPLOYEES, Freelancer, SHIFT_COLORS, 
+from scheduling_logic import (EMPLOYEES, Freelancer, #SHIFT_COLORS, 
                               load_data, save_data, init_availability, 
                                generate_schedule, import_from_excel, 
                                edit_employee, load_employees, ROLE_RULES, add_employee, delete_employee,sync_availability,
@@ -168,28 +168,54 @@ class AvailabilityEditor(QMainWindow):
         current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
         
         if current_employee:
-            available_shifts = current_employee.get_available_shifts()
+            role = current_employee.employee_type
+            available_shifts = []
+            
+            if role in ROLE_RULES:
+                rule = ROLE_RULES[role]
+                if rule["rule_type"] == "shift_based":
+                    day_type = "weekend" if date.weekday() >= 5 else "weekday"
+                    available_shifts = list(rule["shifts"][day_type].values())
+                elif rule["rule_type"] == "fixed_time":
+                    available_shifts = [rule["default_shift"]]
+                    if "special_duty" in rule:
+                        special_duty = rule["special_duty"]
+                        if special_duty["frequency"] == "monthly" and date.day == special_duty["day_of_month"]:
+                            available_shifts.append(special_duty["shift"])
+            
+            # Define role-based colors (you can adjust these as needed)
+            role_colors = {
+                "Freelancer": (75, 150, 225),      # Light blue
+                "SeniorEditor": (225, 75, 75),     # Red
+                "economics": (75, 225, 75),        # Green
+                "Entertainment": (225, 225, 75),   # Yellow
+                "KoreanEntertainment": (225, 75, 225)  # Purple
+            }
+            
+            # Get color for the current role or use default light blue
+            color_rgb = role_colors.get(role, (75, 150, 225))  # Default to light blue if role not found
+            color = QColor(*color_rgb)
             
             for shift in available_shifts:
-                if shift in SHIFT_COLORS:
-                    color = QColor(*SHIFT_COLORS[shift])
-                    btn = QPushButton(shift)
-                    btn.setCheckable(True)
-                    btn.setStyleSheet(f"""
-                        QPushButton {{ 
-                            background-color: {color.name()}; 
-                            border: 1px solid gray;
-                            color: white;  
-                        }}
-                        QPushButton:checked {{
-                            border: 2px solid white;
-                            color: black;
-                        }}
-                    """)
-                    btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
-                    day_layout.addWidget(btn)
+                btn = QPushButton(shift)
+                btn.setCheckable(True)
+                btn.setStyleSheet(f"""
+                    QPushButton {{ 
+                        background-color: {color.name()}; 
+                        border: 1px solid gray;
+                        color: white;  
+                    }}
+                    QPushButton:checked {{
+                        border: 2px solid white;
+                        color: black;
+                    }}
+                """)
+                btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
+                day_layout.addWidget(btn)
         
         return day_widget
+
+
 
     def update_calendar(self):
         for i in reversed(range(self.calendar_layout.count())): 

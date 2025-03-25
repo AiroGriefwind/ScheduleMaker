@@ -100,11 +100,12 @@ def load_data():
 # Constants
 EMPLOYEES = init_employees()
 FREELANCERS = [employee.name for employee in EMPLOYEES if isinstance(employee, Freelancer)]
-SHIFT_COLORS = {
-    "7-16": (144, 238, 144),   # Light green
-    "10-19": (255, 228, 181),  # Light orange
-    "15-24": (176, 224, 230)   # Light blue
-}
+# SHIFT_COLORS = {
+#     "7-16": (144, 238, 144),   # Light green
+#     "10-19": (255, 228, 181),  # Light orange
+#     "15-24": (176, 224, 230),   # Light blue
+#     "13-22": (150, 75, 225),  # Light purple
+# }
 # New centralized role-based rules storage
 ROLE_RULES = {
     "Freelancer": {

@@ -24,14 +24,6 @@
         "role": "Freelancer"
     },
     {
-        "name": "Daisy",
-        "role": "SeniorEditor"
-    },
-    {
-        "name": "Tak",
-        "role": "SeniorEditor"
-    },
-    {
         "name": "Waiyee",
         "role": "economic"
     },
@@ -58,5 +50,13 @@
     {
         "name": "Tiffany",
         "role": "KoreanEntertainment"
+    },
+    {
+        "name": "Daisy",
+        "role": "SeniorEditor"
+    },
+    {
+        "name": "Tak",
+        "role": "SeniorEditor"
     }
 ]
