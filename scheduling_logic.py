@@ -32,7 +32,12 @@ class Freelancer(Employee):
         super().__init__(name, "Freelancer")
         
     def get_available_shifts(self):
-        return ["7-16", "10-19", "15-24"]
+        # Get current day of week to determine if it's a weekday or weekend
+        today = datetime.now().weekday()
+        day_type = "weekday" if today < 5 else "weekend"
+        
+        # Return all shifts for the current day type
+        return list(ROLE_RULES[day_type].values())
 
 class SeniorEditor(Employee):
     def __init__(self, name):

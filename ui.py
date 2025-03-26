@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu)
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QPalette
-from scheduling_logic import (EMPLOYEES, Freelancer, #SHIFT_COLORS, 
+from scheduling_logic import (EMPLOYEES, Freelancer,  
                               load_data, save_data, init_availability, 
                                generate_schedule, import_from_excel, 
                                edit_employee, load_employees, ROLE_RULES, add_employee, delete_employee,sync_availability,
