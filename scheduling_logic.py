@@ -100,18 +100,13 @@ def load_data():
 # Constants
 EMPLOYEES = init_employees()
 FREELANCERS = [employee.name for employee in EMPLOYEES if isinstance(employee, Freelancer)]
-# SHIFT_COLORS = {
-#     "7-16": (144, 238, 144),   # Light green
-#     "10-19": (255, 228, 181),  # Light orange
-#     "15-24": (176, 224, 230),   # Light blue
-#     "13-22": (150, 75, 225),  # Light purple
-# }
+
 # New centralized role-based rules storage
 ROLE_RULES = {
     "Freelancer": {
         "rule_type": "shift_based",
         "shifts": {
-            "weekday": {"early": "7-16", "day": "10-19", "night": "15-24"},
+            "weekday": {"early": "7-16", "day": "0930-1830", "night": "15-24"},
             "weekend": {"early": "7-16", "day": "10-19", "night": "15-24"}
         },
         "requirements": {
@@ -122,11 +117,6 @@ ROLE_RULES = {
     "SeniorEditor": {
         "rule_type": "fixed_time",
         "default_shift": "13-22",
-        "special_duty": {
-            "frequency": "monthly",
-            "day_of_month": 1,  # 1st day of each month
-            "shift": "7-16"
-        }
     },
     # Other roles can be added here with their specific rules
     "economic": {
@@ -344,7 +334,6 @@ def generate_senior_editor_schedule(availability, start_date, schedule):
     
     senior_editor_rules = ROLE_RULES["SeniorEditor"]
     senior_editor_shift = senior_editor_rules["default_shift"]
-    senior_editor_special_duty = senior_editor_rules.get("special_duty", None)
     
     senior_editors = [emp.name for emp in EMPLOYEES if emp.employee_type == "SeniorEditor"]
     
@@ -354,10 +343,7 @@ def generate_senior_editor_schedule(availability, start_date, schedule):
         
         # Assign shifts to senior editors
         for name in senior_editors:
-            if senior_editor_special_duty and date.day == senior_editor_special_duty["day_of_month"]:
-                senior_editor_shifts[name] = senior_editor_special_duty["shift"]
-            else:
-                senior_editor_shifts[name] = senior_editor_shift
+            senior_editor_shifts[name] = senior_editor_shift
         
         # Find the existing entry in the schedule for this date
         existing_entry = next((entry for entry in schedule if entry["Date"] == date_str), None)
@@ -413,26 +399,12 @@ def export_availability_to_excel(availability):
 def clear_availability(start_date, employees):
     return init_availability(start_date, employees)
 
+
+
 # Main logic for testing
 if __name__ == "__main__":
     # Define start date for testing
     start_date = datetime.strptime("2025-03-19", "%Y-%m-%d")
     
-    # Load existing availability from JSON
-    availability = load_data()  # Assumes load_data() reads from 'availability.json'
-    for employee in EMPLOYEES:
-        print(employee.name)
     
-    # Save updated availability back to JSON
-    save_data(availability)  # Assumes save_data() writes to 'availability.json'
-    export_availability_to_excel(availability)
-    # Generate schedule based on updated availability
-    warnings = generate_schedule(availability, start_date, export_to_excel=True)
     
-    # Print warnings if there are any
-    if warnings:
-        print("Warnings:")
-        for warning in warnings:
-            print(warning)
-    else:
-        print("Schedule generated successfully!")
