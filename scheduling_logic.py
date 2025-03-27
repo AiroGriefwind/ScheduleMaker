@@ -256,11 +256,19 @@ def delete_employee(name):
 
 
 
+# Add this at the module level in scheduling_logic.py
+_last_generated_schedule = []
+
+def get_last_generated_schedule():
+    global _last_generated_schedule
+    return _last_generated_schedule
+
 def generate_schedule(availability, start_date, export_to_excel=True):
     """
     Main function to generate schedules for all employee types.
     Delegates schedule generation to specific functions based on employee type.
     """
+    global _last_generated_schedule
     warnings = []
     schedule = []
     
@@ -268,12 +276,16 @@ def generate_schedule(availability, start_date, export_to_excel=True):
     warnings.extend(generate_freelancer_schedule(availability, start_date, schedule))
     warnings.extend(generate_senior_editor_schedule(availability, start_date, schedule))
     
+    # Store the generated schedule
+    _last_generated_schedule = schedule
+    
     # Export schedule to Excel if requested
     if export_to_excel:
         df = pd.DataFrame(schedule)
         df.to_excel("schedule_with_senior_editors.xlsx", index=False)
     
     return warnings
+
 
 def generate_freelancer_schedule(availability, start_date, schedule):
     warnings = []

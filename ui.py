@@ -1,7 +1,9 @@
 import sys
+import pandas as pd # Import for SchedulePreviewDialog
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QHBoxLayout, QPushButton, QComboBox, QLabel,
                               QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu)
+from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QDialogButtonBox # Import for SchedulePreviewDialog
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QPalette
 from scheduling_logic import (EMPLOYEES, Freelancer,  
@@ -122,6 +124,8 @@ class AvailabilityEditor(QMainWindow):
         button_layout.addWidget(add_btn)
 
         layout.addLayout(button_layout)
+
+    
 
     def add_new_employee(self):
         dialog = QDialog(self)
@@ -341,18 +345,27 @@ class AvailabilityEditor(QMainWindow):
             QMessageBox.information(self, "Validation", "No issues found with the current schedule.")
 
 
-
-
-
     def generate_schedule(self):
         try:
-            warnings = generate_schedule(self.availability, self.start_date)
+            # Generate schedule without exporting to Excel
+            warnings = generate_schedule(self.availability, self.start_date, export_to_excel=False)
+            
+            # Get the schedule data from the function
+            # You need to modify your scheduling_logic.py to return the schedule data
+            from scheduling_logic import get_last_generated_schedule
+            schedule_data = get_last_generated_schedule()
+            
             if warnings:
                 warning_message = "\n".join(warnings)
                 QMessageBox.warning(self, "Scheduling Warnings", warning_message)
-            QMessageBox.information(self, "Success", "Excel schedule has been successfully generated!")
+            
+            # Show preview dialog
+            preview_dialog = SchedulePreviewDialog(schedule_data, self)
+            preview_dialog.exec_()
+            
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to generate schedule: {str(e)}")
+
 
 
 
@@ -405,6 +418,60 @@ class AvailabilityEditor(QMainWindow):
             
             QMessageBox.information(self, "Success", f"Employee {name} deleted successfully.")
 
+
+class SchedulePreviewDialog(QDialog):
+    def __init__(self, schedule_data, parent=None):
+        super().__init__(parent)
+        self.schedule_data = schedule_data
+        self.setWindowTitle("Schedule Preview")
+        self.setGeometry(200, 200, 800, 500)
+        self.init_ui()
+        
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Create table widget
+        self.table = QTableWidget()
+        if self.schedule_data:
+            # Set row and column count
+            self.table.setRowCount(len(self.schedule_data))
+            self.table.setColumnCount(len(self.schedule_data[0]))
+            
+            # Set headers
+            headers = list(self.schedule_data[0].keys())
+            self.table.setHorizontalHeaderLabels(headers)
+            
+            # Populate table
+            for row, entry in enumerate(self.schedule_data):
+                for col, header in enumerate(headers):
+                    item = QTableWidgetItem(str(entry.get(header, "")))
+                    self.table.setItem(row, col, item)
+            
+            # Resize columns to content
+            self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        
+        layout.addWidget(self.table)
+        
+        # Add buttons
+        button_box = QDialogButtonBox()
+        export_btn = QPushButton("導出")
+        export_btn.clicked.connect(self.export_to_excel)
+        cancel_btn = QPushButton("取消")
+        cancel_btn.clicked.connect(self.reject)
+        
+        button_box.addButton(export_btn, QDialogButtonBox.AcceptRole)
+        button_box.addButton(cancel_btn, QDialogButtonBox.RejectRole)
+        
+        layout.addWidget(button_box)
+    
+    def export_to_excel(self):
+        try:
+            df = pd.DataFrame(self.schedule_data)
+            df.to_excel("schedule_with_senior_editors.xlsx", index=False)
+            QMessageBox.information(self, "Success", "Excel schedule has been successfully generated!")
+            self.accept()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to export schedule: {str(e)}")
 
 
 if __name__ == "__main__":
