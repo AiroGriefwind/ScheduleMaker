@@ -188,22 +188,16 @@ class AvailabilityEditor(QMainWindow):
                     available_shifts = list(rule["shifts"][day_type].values())
                 elif rule["rule_type"] == "fixed_time":
                     available_shifts = [rule["default_shift"]]
-                    if "special_duty" in rule:
-                        special_duty = rule["special_duty"]
-                        if special_duty["frequency"] == "monthly" and date.day == special_duty["day_of_month"]:
-                            available_shifts.append(special_duty["shift"])
             
-            # Define role-based colors (you can adjust these as needed)
             role_colors = {
-                "Freelancer": (75, 150, 225),      # Light blue
-                "SeniorEditor": (225, 75, 75),     # Red
-                "economics": (75, 225, 75),        # Green
-                "Entertainment": (225, 225, 75),   # Yellow
-                "KoreanEntertainment": (225, 75, 225)  # Purple
+                "Freelancer": (75, 150, 225),
+                "SeniorEditor": (225, 75, 75),
+                "economics": (75, 225, 75),
+                "Entertainment": (225, 225, 75),
+                "KoreanEntertainment": (225, 75, 225)
             }
             
-            # Get color for the current role or use default light blue
-            color_rgb = role_colors.get(role, (75, 150, 225))  # Default to light blue if role not found
+            color_rgb = role_colors.get(role, (75, 150, 225))
             color = QColor(*color_rgb)
             
             for shift in available_shifts:
@@ -220,10 +214,16 @@ class AvailabilityEditor(QMainWindow):
                         color: black;
                     }}
                 """)
-                btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
+                
+                if rule["rule_type"] == "fixed_time":
+                    btn.setEnabled(False)
+                else:
+                    btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
+                
                 day_layout.addWidget(btn)
         
         return day_widget
+
 
 
 
@@ -241,7 +241,13 @@ class AvailabilityEditor(QMainWindow):
                 for i in range(day_widget.layout().count()):
                     widget = day_widget.layout().itemAt(i).widget()
                     if isinstance(widget, QPushButton):
-                        widget.setChecked(widget.text() in shifts)
+                        if "Available" in shifts:
+                            widget.setChecked(True)
+                            widget.setText("Available")
+                        else:
+                            widget.setChecked(widget.text() in shifts)
+        
+        
 
     def toggle_shift(self, date_str, shift):
         if self.current_employee_name in self.availability[date_str]:

@@ -414,39 +414,34 @@ def import_from_google_form(file_path):
         raise ValueError(f"Failed to import Google Form data: {str(e)}")
 
 def process_fulltime_availability(availability, row, employee_name):
-    """Process full-time employee availability from form response."""
-    # Identify full-time date columns (format: '全職 [DD/MM/YYYY]')
     fulltime_cols = [col for col in row.index if col.startswith('全職 [') and ']' in col]
     
     for col in fulltime_cols:
-        # Extract date from column name
         date_str = col.split('[')[1].split(']')[0]
-        
-        # Convert date format from DD/MM/YYYY to YYYY-MM-DD for internal storage
         date_parts = date_str.split('/')
         if len(date_parts) == 3:
             iso_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
             
-            # Initialize date in availability if not exists
             if iso_date not in availability:
                 availability[iso_date] = {}
-                
-            # Initialize employee in date if not exists
+            
             if employee_name not in availability[iso_date]:
                 availability[iso_date][employee_name] = []
-                
-            # Check if any leave option is selected (not empty/NaN)
+            
             leave_value = row[col]
             
-            # If leave field has a value, employee is NOT available (leave requested)
-            # If leave field is empty, employee IS available
             if pd.notna(leave_value) and leave_value:
-                # Store leave type in availability data
-                # For full-timers, we store the leave type (AL, CL, PH, etc.)
+                # Employee is not available (leave requested)
                 availability[iso_date][employee_name] = [leave_value]
             else:
                 # Employee is available (no leave)
-                availability[iso_date][employee_name] = []
+                employee = next((emp for emp in EMPLOYEES if emp.name == employee_name), None)
+                if employee and employee.employee_type in ROLE_RULES:
+                    rule = ROLE_RULES[employee.employee_type]
+                    if rule["rule_type"] == "fixed_time":
+                        availability[iso_date][employee_name] = [rule["default_shift"]]
+
+
 
 def process_freelancer_availability(availability, row, employee_name):
     """Process freelancer availability from form response."""
