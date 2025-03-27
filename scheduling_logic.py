@@ -375,6 +375,129 @@ def generate_senior_editor_schedule(availability, start_date, schedule):
     
     return warnings
 
+def import_from_google_form(file_path):
+    """
+    Import employee availability data from Google Form responses Excel file.
+    Handles both full-time and freelancer data formats.
+    """
+    try:
+        df = pd.read_excel(file_path)
+        
+        # Initialize availability data structure if not exists
+        availability = load_data() or {}
+        
+        # Process each response row
+        for _, row in df.iterrows():
+            # Skip rows without name
+            if pd.isna(row.get('名字')):
+                continue
+                
+            employee_name = row['名字']
+            employee_type = row.get('請問您是全職還是兼職？')
+            
+            # Skip if employee type is not specified
+            if pd.isna(employee_type):
+                continue
+                
+            # Process columns based on employee type
+            if employee_type == '全職':
+                # Process full-time employee leave options
+                process_fulltime_availability(availability, row, employee_name)
+            elif employee_type == '兼職':
+                # Process freelancer shift selections
+                process_freelancer_availability(availability, row, employee_name)
+                
+        # Save updated availability data
+        save_data(availability)
+        return "Google Form data imported successfully!"
+    except Exception as e:
+        raise ValueError(f"Failed to import Google Form data: {str(e)}")
+
+def process_fulltime_availability(availability, row, employee_name):
+    """Process full-time employee availability from form response."""
+    # Identify full-time date columns (format: '全職 [DD/MM/YYYY]')
+    fulltime_cols = [col for col in row.index if col.startswith('全職 [') and ']' in col]
+    
+    for col in fulltime_cols:
+        # Extract date from column name
+        date_str = col.split('[')[1].split(']')[0]
+        
+        # Convert date format from DD/MM/YYYY to YYYY-MM-DD for internal storage
+        date_parts = date_str.split('/')
+        if len(date_parts) == 3:
+            iso_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+            
+            # Initialize date in availability if not exists
+            if iso_date not in availability:
+                availability[iso_date] = {}
+                
+            # Initialize employee in date if not exists
+            if employee_name not in availability[iso_date]:
+                availability[iso_date][employee_name] = []
+                
+            # Check if any leave option is selected (not empty/NaN)
+            leave_value = row[col]
+            
+            # If leave field has a value, employee is NOT available (leave requested)
+            # If leave field is empty, employee IS available
+            if pd.notna(leave_value) and leave_value:
+                # Store leave type in availability data
+                # For full-timers, we store the leave type (AL, CL, PH, etc.)
+                availability[iso_date][employee_name] = [leave_value]
+            else:
+                # Employee is available (no leave)
+                availability[iso_date][employee_name] = []
+
+def process_freelancer_availability(availability, row, employee_name):
+    """Process freelancer availability from form response."""
+    # Identify freelancer date columns (format: '兼職 [DD/MM/YYYY]')
+    freelancer_cols = [col for col in row.index if col.startswith('兼職 [') and ']' in col]
+    
+    for col in freelancer_cols:
+        # Extract date from column name
+        date_str = col.split('[')[1].split(']')[0]
+        
+        # Convert date format from DD/MM/YYYY to YYYY-MM-DD for internal storage
+        date_parts = date_str.split('/')
+        if len(date_parts) == 3:
+            iso_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+            
+            # Create a datetime object to check if it's a weekday or weekend
+            date_obj = datetime.strptime(iso_date, "%Y-%m-%d")
+            is_weekend = date_obj.weekday() >= 5  # 5 and 6 are Saturday and Sunday
+            
+            # Initialize date in availability if not exists
+            if iso_date not in availability:
+                availability[iso_date] = {}
+                
+            # Initialize employee in date if not exists
+            if employee_name not in availability[iso_date]:
+                availability[iso_date][employee_name] = []
+            
+            # Get shift selections
+            shift_value = row[col]
+            
+            # Skip if no shifts selected
+            if pd.isna(shift_value):
+                continue
+                
+            # Process shift selections
+            if shift_value == '全選':
+                # All shifts selected
+                availability[iso_date][employee_name] = ["7-16", "0930-1830" if not is_weekend else "10-19", "15-24"]
+            else:
+                # Parse individual shift selections
+                shifts = []
+                if '早更7-16' in str(shift_value):
+                    shifts.append("7-16")
+                if '日更' in str(shift_value):
+                    shifts.append("0930-1830" if not is_weekend else "10-17")
+                if '夜更15-24' in str(shift_value):
+                    shifts.append("15-24")
+                    
+                availability[iso_date][employee_name] = shifts
+
+
 
 def import_from_excel(file_path):
     df = pd.read_excel(file_path)

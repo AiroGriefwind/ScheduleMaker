@@ -35,6 +35,8 @@ class AvailabilityEditor(QMainWindow):
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout(main_widget)
 
+        button_layout = QHBoxLayout()# Add button layout for 從google表單導入
+
         # Control layout for dropdowns and buttons
         control_layout = QHBoxLayout()
         self.employee_combo = QComboBox()
@@ -115,9 +117,13 @@ class AvailabilityEditor(QMainWindow):
         add_btn = QPushButton("Add Employee")
         add_btn.clicked.connect(self.add_new_employee)
 
+        import_form_btn = QPushButton("從Google表單導入")
+        import_form_btn.clicked.connect(self.import_from_google_form)
+
         button_layout.addWidget(save_btn)
         button_layout.addWidget(generate_btn)
         button_layout.addWidget(import_btn)
+        button_layout.addWidget(import_form_btn)  # Add the button for Google Form import
         button_layout.addWidget(export_btn)
         button_layout.addWidget(clear_btn)
         button_layout.addWidget(validate_btn)
@@ -367,7 +373,34 @@ class AvailabilityEditor(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to generate schedule: {str(e)}")
 
 
-
+    def import_from_google_form(self):
+        """Open file dialog to select and import Google Form response Excel file."""
+        from PySide6.QtWidgets import QFileDialog
+        
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Google Form Response Excel File",
+            "",
+            "Excel Files (*.xlsx *.xls)"
+        )
+        
+        if file_path:
+            try:
+                from scheduling_logic import import_from_google_form
+                result = import_from_google_form(file_path)
+                
+                # Reload data and update UI
+                self.availability = load_data()
+                self.employees = load_employees()
+                self.employee_names = [emp.name for emp in self.employees if isinstance(emp, Freelancer)]
+                
+                # Update UI components
+                self.update_employee_list(self.role_combo.currentText())
+                self.update_calendar()
+                
+                QMessageBox.information(self, "Success", result)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to import Google Form data: {str(e)}")
 
     def import_from_excel(self, file_path):
         try:
