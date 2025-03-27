@@ -488,11 +488,11 @@ def process_freelancer_availability(availability, row, employee_name):
             else:
                 # Parse individual shift selections
                 shifts = []
-                if '早更7-16' in str(shift_value):
+                if '早更' in str(shift_value):
                     shifts.append("7-16")
                 if '日更' in str(shift_value):
                     shifts.append("0930-1830" if not is_weekend else "10-17")
-                if '夜更15-24' in str(shift_value):
+                if '夜更' in str(shift_value):
                     shifts.append("15-24")
                     
                 availability[iso_date][employee_name] = shifts
