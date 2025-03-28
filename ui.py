@@ -2,7 +2,7 @@ import sys
 import pandas as pd # Import for SchedulePreviewDialog
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QHBoxLayout, QPushButton, QComboBox, QLabel,
-                              QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu)
+                              QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu  )
 from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QDialogButtonBox # Import for SchedulePreviewDialog
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QColor, QPalette
@@ -164,31 +164,80 @@ class AvailabilityEditor(QMainWindow):
         self.update_calendar()  # Refresh UI components
         dialog.accept()
 
+    def show_shift_context_menu(self, pos, date_str, shift):
+        context_menu = QMenu()
+        leave_action = context_menu.addAction("請假")
+        
+        # Get the button that triggered the context menu
+        button = self.sender()
+        if button is None:
+            # If sender is None, find the button in the calendar layout
+            for i in range(self.calendar_layout.count()):
+                widget = self.calendar_layout.itemAt(i).widget()
+                if isinstance(widget, QWidget):
+                    for child in widget.findChildren(QPushButton):
+                        if child.text() == shift:
+                            button = child
+                            break
+                    if button:
+                        break
+        
+        if button:
+            # Use the button to map the position to global coordinates
+            global_pos = button.mapToGlobal(pos)
+            action = context_menu.exec_(global_pos)
+        else:
+            # Fallback to using the main window if button is not found
+            action = context_menu.exec_(self.mapToGlobal(pos))
+        
+        if action == leave_action:
+            self.show_leave_dialog(date_str, shift)
+
+
+    def show_leave_dialog(self, date_str, shift):
+        dialog = LeaveDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            leave_type = dialog.get_leave_type()
+            self.set_leave(date_str, shift, leave_type)
+
+    def set_leave(self, date_str, shift, leave_type):
+        if self.current_employee_name in self.availability[date_str]:
+            current_shifts = self.availability[date_str][self.current_employee_name]
+            if shift in current_shifts:
+                current_shifts.remove(shift)
+            current_shifts.append(leave_type)
+            
+            save_data(self.availability)
+            self.update_calendar()
+
 
 
     def create_day_widget(self, date_str):
         day_widget = QWidget()
         day_layout = QVBoxLayout(day_widget)
         
+        # Date label setup
         date = datetime.strptime(date_str, "%Y-%m-%d")
         day_label = QLabel(date.strftime("%a\n%d %b"))
         day_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         day_layout.addWidget(day_label)
-        
+
         current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
         
         if current_employee:
             role = current_employee.employee_type
+            rule = ROLE_RULES.get(role, {})
             available_shifts = []
             
-            if role in ROLE_RULES:
-                rule = ROLE_RULES[role]
+            # Determine available shifts based on role rules
+            if rule:
                 if rule["rule_type"] == "shift_based":
                     day_type = "weekend" if date.weekday() >= 5 else "weekday"
                     available_shifts = list(rule["shifts"][day_type].values())
                 elif rule["rule_type"] == "fixed_time":
                     available_shifts = [rule["default_shift"]]
-            
+
+            # Get role color
             role_colors = {
                 "Freelancer": (75, 150, 225),
                 "SeniorEditor": (225, 75, 75),
@@ -196,33 +245,70 @@ class AvailabilityEditor(QMainWindow):
                 "Entertainment": (225, 225, 75),
                 "KoreanEntertainment": (225, 75, 225)
             }
-            
-            color_rgb = role_colors.get(role, (75, 150, 225))
-            color = QColor(*color_rgb)
-            
+            color = QColor(*role_colors.get(role, (75, 150, 225)))
+
+            # Create shift buttons with leave management
             for shift in available_shifts:
                 btn = QPushButton(shift)
                 btn.setCheckable(True)
+                btn.setProperty("original_shift", shift)  # Store original shift text
+                
+                # Style configuration
                 btn.setStyleSheet(f"""
-                    QPushButton {{ 
+                    QPushButton {{
                         background-color: {color.name()}; 
                         border: 1px solid gray;
-                        color: white;  
+                        color: white;
+                        padding: 4px;
                     }}
                     QPushButton:checked {{
                         border: 2px solid white;
                         color: black;
                     }}
                 """)
+
+                # Enable interaction for all employee types, not just non-fixed shifts
+                # This is the key change - we're enabling interaction regardless of rule type
+                btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
+                btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+                btn.customContextMenuRequested.connect(
+                    lambda pos, d=date_str, s=shift: self.show_shift_context_menu(pos, d, s)
+                )
                 
-                if rule["rule_type"] == "fixed_time":
-                    btn.setEnabled(False)
-                else:
-                    btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
-                
+                # Only disable if specifically needed
+                if rule.get("rule_type") == "fixed_time" and not isinstance(current_employee, Freelancer):
+                    # Don't disable, but maybe style differently if needed
+                    pass
+                    
                 day_layout.addWidget(btn)
-        
+
+            # Update button states from availability data
+            if self.current_employee_name in self.availability.get(date_str, {}):
+                recorded_shifts = self.availability[date_str][self.current_employee_name]
+                
+                for i in range(day_layout.count()):
+                    widget = day_layout.itemAt(i).widget()
+                    if isinstance(widget, QPushButton) and widget != day_label:  # Skip the date label
+                        current_text = widget.text()
+                        original_shift = widget.property("original_shift")
+                        
+                        # Check for leave status
+                        if current_text in recorded_shifts:
+                            widget.setChecked(True)
+                        else:
+                            # Handle leave types
+                            leaves = [lt for lt in ["AL", "CL", "PH", "ON", "自由調配"] if lt in recorded_shifts]
+                            if leaves:
+                                widget.setText(leaves[0])
+                                widget.setChecked(True)
+                            else:
+                                widget.setChecked(False)
+                                # Restore original shift text if needed
+                                if original_shift and widget.text() != original_shift:
+                                    widget.setText(original_shift)
+
         return day_widget
+
 
 
 
@@ -252,13 +338,20 @@ class AvailabilityEditor(QMainWindow):
     def toggle_shift(self, date_str, shift):
         if self.current_employee_name in self.availability[date_str]:
             current_shifts = self.availability[date_str][self.current_employee_name]
-            if shift in current_shifts:
+            
+            # Check if this is a leave type being toggled
+            if shift in ["AL", "CL", "PH", "ON", "自由調配"]:
+                # Remove any existing leave types
+                current_shifts = [s for s in current_shifts if s not in ["AL", "CL", "PH", "ON", "自由調配"]]
+            elif shift in current_shifts:
                 current_shifts.remove(shift)
             else:
                 current_shifts.append(shift)
             
             save_data(self.availability)
             self.update_calendar()
+
+
 
     def role_changed(self, role):
         self.update_employee_list(role)
@@ -511,6 +604,24 @@ class SchedulePreviewDialog(QDialog):
             self.accept()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to export schedule: {str(e)}")
+
+class LeaveDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("選擇請假類型")
+        layout = QVBoxLayout(self)
+        
+        self.leave_type_combo = QComboBox()
+        self.leave_type_combo.addItems(["AL", "CL", "PH", "ON", "自由調配"])
+        layout.addWidget(self.leave_type_combo)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def get_leave_type(self):
+        return self.leave_type_combo.currentText()
 
 
 if __name__ == "__main__":
