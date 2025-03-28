@@ -2,10 +2,12 @@ import sys
 import pandas as pd # Import for SchedulePreviewDialog
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QHBoxLayout, QPushButton, QComboBox, QLabel,
-                              QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu  )
+                              QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu,
+                                )
 from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QDialogButtonBox # Import for SchedulePreviewDialog
-from PySide6.QtCore import Qt, QDate
+from PySide6.QtCore import Qt, QDate, QPoint
 from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QCursor # Import for correctly positioning leave menu
 from scheduling_logic import (EMPLOYEES, Freelancer,  
                               load_data, save_data, init_availability, 
                                generate_schedule, import_from_excel, 
@@ -165,22 +167,21 @@ class AvailabilityEditor(QMainWindow):
         dialog.accept()
 
     def show_shift_context_menu(self, pos, date_str, shift):
+        
+        
         context_menu = QMenu()
         leave_action = context_menu.addAction("請假")
+
+        # Execute the menu at the current cursor position
+        action = context_menu.exec_(QCursor.pos())
         
-        # Get the button that triggered the context menu
-        button = self.sender()
-        if button is None:
-            # If sender is None, find the button in the calendar layout
-            for i in range(self.calendar_layout.count()):
-                widget = self.calendar_layout.itemAt(i).widget()
-                if isinstance(widget, QWidget):
-                    for child in widget.findChildren(QPushButton):
-                        if child.text() == shift:
-                            button = child
-                            break
-                    if button:
-                        break
+        if action == leave_action:
+            self.show_leave_dialog(date_str, shift)
+
+
+
+
+
         
         if button:
             # Use the button to map the position to global coordinates
