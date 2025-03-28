@@ -340,16 +340,27 @@ class AvailabilityEditor(QMainWindow):
             current_shifts = self.availability[date_str][self.current_employee_name]
             
             # Check if this is a leave type being toggled
-            if shift in ["AL", "CL", "PH", "ON", "自由調配"]:
+            leave_types = ["AL", "CL", "PH", "ON", "自由調配"]
+            
+            if shift in leave_types:
                 # Remove any existing leave types
-                current_shifts = [s for s in current_shifts if s not in ["AL", "CL", "PH", "ON", "自由調配"]]
-            elif shift in current_shifts:
-                current_shifts.remove(shift)
-            else:
+                current_shifts = [s for s in current_shifts if s not in leave_types]
                 current_shifts.append(shift)
+            else:
+                # If the shift is already in current_shifts, remove it
+                if shift in current_shifts:
+                    current_shifts.remove(shift)
+                else:
+                    # Remove any existing leave types before adding the new shift
+                    current_shifts = [s for s in current_shifts if s not in leave_types]
+                    current_shifts.append(shift)
+            
+            # Update the availability for this date and employee
+            self.availability[date_str][self.current_employee_name] = current_shifts
             
             save_data(self.availability)
             self.update_calendar()
+
 
 
 
