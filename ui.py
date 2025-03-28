@@ -179,22 +179,6 @@ class AvailabilityEditor(QMainWindow):
             self.show_leave_dialog(date_str, shift)
 
 
-
-
-
-        
-        if button:
-            # Use the button to map the position to global coordinates
-            global_pos = button.mapToGlobal(pos)
-            action = context_menu.exec_(global_pos)
-        else:
-            # Fallback to using the main window if button is not found
-            action = context_menu.exec_(self.mapToGlobal(pos))
-        
-        if action == leave_action:
-            self.show_leave_dialog(date_str, shift)
-
-
     def show_leave_dialog(self, date_str, shift):
         dialog = LeaveDialog(self)
         if dialog.exec_() == QDialog.Accepted:
