@@ -37,7 +37,7 @@ class Freelancer(Employee):
         day_type = "weekday" if today < 5 else "weekend"
         
         # Return all shifts for the current day type
-        return list(ROLE_RULES[day_type].values())
+        return list(ROLE_RULES["Freelancer"]["shifts"][day_type].values()) 
 
 class SeniorEditor(Employee):
     def __init__(self, name):
@@ -237,10 +237,15 @@ def edit_employee(old_name, new_name, new_role, new_start_time=None, new_end_tim
     availability = load_data()
     for date in availability:
         if old_name in availability[date]:
-            availability[date][new_name] = availability[date].pop(old_name)
+            current_shifts = availability[date][old_name]
+            # Preserve leaves and special codes
+            leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配"}]
+            
             if new_role != 'Freelancer' and new_start_time and new_end_time:
-                availability[date][new_name] = [shift for shift in availability[date][new_name] if shift in ["AL", "CL", "PH", "ON", "自由調配"]]
-                availability[date][new_name].append(f"{new_start_time}-{new_end_time}")
+                new_shift = f"{new_start_time}-{new_end_time}"
+                # Only update non-leave days
+                availability[date][new_name] = leaves if leaves else [new_shift]
+    
     save_data(availability)
     save_employees()
     sync_availability()

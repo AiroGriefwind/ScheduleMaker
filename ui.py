@@ -159,6 +159,15 @@ class AvailabilityEditor(QMainWindow):
         save_btn = QPushButton("Save")
         save_btn.clicked.connect(lambda: self.save_new_employee(dialog, name_input.text(), role_input.currentText(), start_time_input.text(), end_time_input.text()))
         
+        # Add role change listener
+        def role_changed(role):
+            is_freelancer = (role == "Freelancer")
+            start_time_input.setEnabled(not is_freelancer)
+            end_time_input.setEnabled(not is_freelancer)
+        
+        role_input.currentTextChanged.connect(role_changed)
+        role_changed(role_input.currentText())  # Initial check
+
         layout.addWidget(save_btn)
         
         dialog.exec_()
@@ -177,12 +186,22 @@ class AvailabilityEditor(QMainWindow):
 
 
     # Updated ui.py
-    def save_new_employee(self, dialog, name, role):
-        add_employee(name, role)
+    def save_new_employee(self, dialog, new_name, new_role, new_start_time=None, new_end_time=None):
+        if new_role != 'Freelancer' and (not new_start_time or not new_end_time):
+            QMessageBox.warning(self, "Error", "非自由工作者必須提供上下班時間")
+            return
+        
+        # For freelancers, ignore time inputs and use default rules
+        if new_role == 'Freelancer':
+            add_employee(new_name, new_role)
+        else:
+            add_employee(new_name, new_role, new_start_time, new_end_time)
+        
+        # Refresh data and UI
         self.employees = load_employees()
-        self.availability = load_data()  # Critical reload
+        self.availability = load_data()
         self.update_employee_list(self.role_combo.currentText())
-        self.update_calendar()  # Refresh UI components
+        self.update_calendar()
         dialog.accept()
 
     def show_shift_context_menu(self, pos, date_str, shift):
@@ -318,19 +337,17 @@ class AvailabilityEditor(QMainWindow):
 
 
     def update_calendar(self):
-        # Clear existing calendar widgets using proper destruction
+        # Clear existing widgets
         while self.calendar_layout.count():
             item = self.calendar_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        # Create new calendar widgets with fresh data
         sorted_dates = sorted(self.availability.keys())
         for col, date_str in enumerate(sorted_dates):
             day_widget = self.create_day_widget(date_str)
             self.calendar_layout.addWidget(day_widget, 0, col)
 
-            # Handle shift display with leave preservation
             if self.current_employee_name in self.availability[date_str]:
                 current_shifts = self.availability[date_str][self.current_employee_name]
                 leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配"}]
@@ -340,20 +357,25 @@ class AvailabilityEditor(QMainWindow):
                     if isinstance(widget, QPushButton):
                         original_shift = widget.property("original_shift")
                         
-                        # Preserve leave statuses
                         if leaves:
                             widget.setText(leaves[0])
                             widget.setChecked(True)
-                            widget.setStyleSheet("background-color: #FF9999;")  # Visual indicator for leaves
+                            widget.setStyleSheet("background-color: #FF9999;")
                         else:
-                            # Update shift time display from employee data
                             current_employee = next((e for e in self.employees 
                                                 if e.name == self.current_employee_name), None)
-                            if current_employee and original_shift:
-                                new_shift = f"{current_employee.start_time}-{current_employee.end_time}"
-                                widget.setText(new_shift)
-                                widget.setChecked(new_shift in current_shifts)
-                                widget.setStyleSheet("")  # Reset style for regular shifts
+                            if current_employee:
+                                role_rule = ROLE_RULES.get(current_employee.employee_type, {})
+                                # Only update fixed-time roles
+                                if role_rule.get("rule_type") == "fixed_time" and original_shift:
+                                    new_shift = f"{current_employee.start_time}-{current_employee.end_time}"
+                                    widget.setText(new_shift)
+                                    widget.setChecked(new_shift in current_shifts)
+                                else:
+                                    # Keep original shift text for shift-based roles
+                                    widget.setChecked(original_shift in current_shifts)
+                                widget.setStyleSheet("")
+
 
         
         

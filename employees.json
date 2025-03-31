@@ -80,17 +80,17 @@
     {
         "name": "Daisy",
         "role": "SeniorEditor",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Tak",
         "role": "SeniorEditor",
-        "start_time": "9",
-        "end_time": "18"
+        "start_time": null,
+        "end_time": null
     },
     {
-        "name": "Caper",
+        "name": "Sandy",
         "role": "Freelancer",
         "start_time": null,
         "end_time": null
