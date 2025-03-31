@@ -37,13 +37,13 @@
     },
     {
         "name": "Waiyee",
-        "role": "economic",
+        "role": "economics",
         "start_time": null,
         "end_time": null
     },
     {
         "name": "Cindy",
-        "role": "economic",
+        "role": "economics",
         "start_time": null,
         "end_time": null
     },
@@ -80,18 +80,12 @@
     {
         "name": "Daisy",
         "role": "SeniorEditor",
-        "start_time": null,
-        "end_time": null
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Tak",
         "role": "SeniorEditor",
-        "start_time": null,
-        "end_time": null
-    },
-    {
-        "name": "Sandy",
-        "role": "Freelancer",
         "start_time": null,
         "end_time": null
     }

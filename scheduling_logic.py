@@ -124,7 +124,7 @@ ROLE_RULES = {
         "default_shift": "13-22",
     },
     # Other roles can be added here with their specific rules
-    "economic": {
+    "economics": {
         "rule_type": "fixed_time",
         "default_shift": "10-19",
     },
@@ -294,6 +294,9 @@ def generate_schedule(availability, start_date, export_to_excel=True):
     # Generate schedules for each employee type
     warnings.extend(generate_freelancer_schedule(availability, start_date, schedule))
     warnings.extend(generate_senior_editor_schedule(availability, start_date, schedule))
+    #warnings.extend(generate_economics_schedule(availability, start_date, schedule))
+    #warnings.extend(generate_entertainment_schedule(availability, start_date, schedule))
+    #warnings.extend(generate_korean_entertainment_schedule(availability, start_date, schedule))
     
     # Store the generated schedule
     _last_generated_schedule = schedule
@@ -394,6 +397,7 @@ def generate_senior_editor_schedule(availability, start_date, schedule):
     
     return warnings
 
+
 def import_from_google_form(file_path):
     """
     Import employee availability data from Google Form responses Excel file.
@@ -450,14 +454,21 @@ def process_fulltime_availability(availability, row, employee_name):
             leave_value = row[col]
             
             if pd.notna(leave_value) and leave_value:
-                # Employee is not available (leave requested)
                 availability[iso_date][employee_name] = [leave_value]
             else:
-                # Employee is available (no leave)
                 employee = next((emp for emp in EMPLOYEES if emp.name == employee_name), None)
                 if employee and employee.employee_type in ROLE_RULES:
-                    rule = ROLE_RULES[employee.employee_type]
-                    if rule["rule_type"] == "fixed_time":
+                    # Get actual shift from the form response
+                    shift_value = row[col]  # New line to capture actual shift
+                    if pd.notna(shift_value) and "-" in shift_value:
+                        # Update employee configuration
+                        start_time, end_time = shift_value.split('-')
+                        employee.start_time = start_time
+                        employee.end_time = end_time
+                        availability[iso_date][employee_name] = [shift_value]
+                    else:
+                        # Fallback to default shift
+                        rule = ROLE_RULES[employee.employee_type]
                         availability[iso_date][employee_name] = [rule["default_shift"]]
 
 
@@ -533,8 +544,17 @@ def import_from_excel(file_path):
         
         if shift not in availability[date_str][employee_name]:
             availability[date_str][employee_name].append(shift)
+        
+        # Update employee configuration
+        employee = next((emp for emp in EMPLOYEES if emp.name == employee_name), None)
+        if employee and employee.employee_type != 'Freelancer':
+            if '-' in shift and shift not in ["AL", "CL", "PH", "ON", "自由調配"]:
+                start_time, end_time = shift.split('-')
+                employee.start_time = start_time
+                employee.end_time = end_time
     
     save_data(availability)
+    save_employees()  # Save updated employee configurations
     return "Data imported successfully!"
 
 def export_availability_to_excel(availability):

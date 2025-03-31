@@ -238,7 +238,7 @@ class AvailabilityEditor(QMainWindow):
     def create_day_widget(self, date_str):
         day_widget = QWidget()
         day_layout = QVBoxLayout(day_widget)
-        
+
         # Date label setup
         date = datetime.strptime(date_str, "%Y-%m-%d")
         day_label = QLabel(date.strftime("%a\n%d %b"))
@@ -246,12 +246,12 @@ class AvailabilityEditor(QMainWindow):
         day_layout.addWidget(day_label)
 
         current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
-        
+
         if current_employee:
             role = current_employee.employee_type
             rule = ROLE_RULES.get(role, {})
             available_shifts = []
-            
+
             # Determine available shifts based on role rules
             if rule:
                 if rule["rule_type"] == "shift_based":
@@ -275,46 +275,45 @@ class AvailabilityEditor(QMainWindow):
                 btn = QPushButton(shift)
                 btn.setCheckable(True)
                 btn.setProperty("original_shift", shift)  # Store original shift text
-                
+
                 # Style configuration
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background-color: {color.name()}; 
+                        background-color: lightgray;  /* Default deselected state */
                         border: 1px solid gray;
-                        color: white;
+                        color: black;
                         padding: 4px;
                     }}
+                    QPushButton:hover {{
+                        background-color: {color.name()}; /* Hover changes to role-specific color */
+                        color: white;
+                    }}
                     QPushButton:checked {{
+                        background-color: {color.name()}; /* Checked state matches hover color */
                         border: 2px solid white;
                         color: black;
                     }}
                 """)
 
-                # Enable interaction for all employee types, not just non-fixed shifts
-                # This is the key change - we're enabling interaction regardless of rule type
+                # Enable interaction for all employee types
                 btn.clicked.connect(lambda _, d=date_str, s=shift: self.toggle_shift(d, s))
                 btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
                 btn.customContextMenuRequested.connect(
                     lambda pos, d=date_str, s=shift: self.show_shift_context_menu(pos, d, s)
                 )
-                
-                # Only disable if specifically needed
-                if rule.get("rule_type") == "fixed_time" and not isinstance(current_employee, Freelancer):
-                    # Don't disable, but maybe style differently if needed
-                    pass
-                    
+
                 day_layout.addWidget(btn)
 
             # Update button states from availability data
             if self.current_employee_name in self.availability.get(date_str, {}):
                 recorded_shifts = self.availability[date_str][self.current_employee_name]
-                
+
                 for i in range(day_layout.count()):
                     widget = day_layout.itemAt(i).widget()
                     if isinstance(widget, QPushButton) and widget != day_label:  # Skip the date label
                         current_text = widget.text()
                         original_shift = widget.property("original_shift")
-                        
+
                         # Check for leave status
                         if current_text in recorded_shifts:
                             widget.setChecked(True)
@@ -334,8 +333,6 @@ class AvailabilityEditor(QMainWindow):
 
 
 
-
-
     def update_calendar(self):
         # Clear existing widgets
         while self.calendar_layout.count():
@@ -350,31 +347,16 @@ class AvailabilityEditor(QMainWindow):
 
             if self.current_employee_name in self.availability[date_str]:
                 current_shifts = self.availability[date_str][self.current_employee_name]
-                leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配"}]
                 
                 for i in range(day_widget.layout().count()):
                     widget = day_widget.layout().itemAt(i).widget()
                     if isinstance(widget, QPushButton):
-                        original_shift = widget.property("original_shift")
-                        
-                        if leaves:
-                            widget.setText(leaves[0])
+                        # Always display actual shift from availability
+                        actual_shift = current_shifts[0] if current_shifts else ""
+                        if actual_shift and actual_shift not in ["AL", "CL", "PH", "ON", "自由調配"]:
+                            widget.setText(actual_shift)
                             widget.setChecked(True)
-                            widget.setStyleSheet("background-color: #FF9999;")
-                        else:
-                            current_employee = next((e for e in self.employees 
-                                                if e.name == self.current_employee_name), None)
-                            if current_employee:
-                                role_rule = ROLE_RULES.get(current_employee.employee_type, {})
-                                # Only update fixed-time roles
-                                if role_rule.get("rule_type") == "fixed_time" and original_shift:
-                                    new_shift = f"{current_employee.start_time}-{current_employee.end_time}"
-                                    widget.setText(new_shift)
-                                    widget.setChecked(new_shift in current_shifts)
-                                else:
-                                    # Keep original shift text for shift-based roles
-                                    widget.setChecked(original_shift in current_shifts)
-                                widget.setStyleSheet("")
+
 
 
         
