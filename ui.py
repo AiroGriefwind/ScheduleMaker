@@ -347,18 +347,35 @@ class AvailabilityEditor(QMainWindow):
 
             if self.current_employee_name in self.availability[date_str]:
                 current_shifts = self.availability[date_str][self.current_employee_name]
+                leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配"}]
+                
+                # Get employee and determine role type
+                current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
+                is_freelancer = current_employee and current_employee.employee_type == "Freelancer"
                 
                 for i in range(day_widget.layout().count()):
                     widget = day_widget.layout().itemAt(i).widget()
                     if isinstance(widget, QPushButton):
-                        # Always display actual shift from availability
-                        actual_shift = current_shifts[0] if current_shifts else ""
-                        if actual_shift and actual_shift not in ["AL", "CL", "PH", "ON", "自由調配"]:
-                            widget.setText(actual_shift)
+                        original_shift = widget.property("original_shift")
+                        
+                        if leaves:
+                            # Handle leave types
+                            widget.setText(leaves[0])
                             widget.setChecked(True)
-
-
-
+                        elif is_freelancer:
+                            # For freelancers: Only check buttons for shifts that are selected
+                            if original_shift in current_shifts:
+                                widget.setChecked(True)
+                            else:
+                                widget.setChecked(False)
+                            # Always preserve original shift text
+                            widget.setText(original_shift)
+                        else:
+                            # For fixed shift employees: Handle as before
+                            actual_shift = current_shifts[0] if current_shifts else ""
+                            if actual_shift and actual_shift not in ["AL", "CL", "PH", "ON", "自由調配"]:
+                                widget.setText(actual_shift)
+                                widget.setChecked(True)
         
         
 
