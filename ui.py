@@ -258,7 +258,11 @@ class AvailabilityEditor(QMainWindow):
                     day_type = "weekend" if date.weekday() >= 5 else "weekday"
                     available_shifts = list(rule["shifts"][day_type].values())
                 elif rule["rule_type"] == "fixed_time":
-                    available_shifts = [rule["default_shift"]]
+                    # Use employee's custom time if available, otherwise use default
+                    if current_employee.start_time and current_employee.end_time:
+                        available_shifts = [f"{current_employee.start_time}-{current_employee.end_time}"]
+                    else:
+                        available_shifts = [rule["default_shift"]]
 
             # Get role color
             role_colors = {
@@ -333,6 +337,7 @@ class AvailabilityEditor(QMainWindow):
 
 
 
+
     def update_calendar(self):
         # Clear existing widgets
         while self.calendar_layout.count():
@@ -404,6 +409,7 @@ class AvailabilityEditor(QMainWindow):
             
             save_data(self.availability)
             self.update_calendar()
+
 
 
 

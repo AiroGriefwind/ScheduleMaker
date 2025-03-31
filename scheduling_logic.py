@@ -439,6 +439,11 @@ def import_from_google_form(file_path):
 def process_fulltime_availability(availability, row, employee_name):
     fulltime_cols = [col for col in row.index if col.startswith('全職 [') and ']' in col]
     
+    # Find the employee object
+    employee = next((emp for emp in EMPLOYEES if emp.name == employee_name), None)
+    if not employee:
+        return  # Skip if employee not found
+        
     for col in fulltime_cols:
         date_str = col.split('[')[1].split(']')[0]
         date_parts = date_str.split('/')
@@ -453,23 +458,29 @@ def process_fulltime_availability(availability, row, employee_name):
             
             leave_value = row[col]
             
-            if pd.notna(leave_value) and leave_value:
+            if pd.notna(leave_value) and leave_value in ["AL", "CL", "PH", "ON", "自由調配"]:
+                # This is a leave entry
                 availability[iso_date][employee_name] = [leave_value]
             else:
-                employee = next((emp for emp in EMPLOYEES if emp.name == employee_name), None)
-                if employee and employee.employee_type in ROLE_RULES:
-                    # Get actual shift from the form response
-                    shift_value = row[col]  # New line to capture actual shift
-                    if pd.notna(shift_value) and "-" in shift_value:
-                        # Update employee configuration
-                        start_time, end_time = shift_value.split('-')
-                        employee.start_time = start_time
-                        employee.end_time = end_time
-                        availability[iso_date][employee_name] = [shift_value]
+                # This is a regular shift entry
+                shift_value = row[col]
+                if pd.notna(shift_value) and "-" in shift_value:
+                    # Update employee configuration with the shift from form
+                    start_time, end_time = shift_value.split('-')
+                    employee.start_time = start_time
+                    employee.end_time = end_time
+                    availability[iso_date][employee_name] = [shift_value]
+                elif employee.employee_type in ROLE_RULES:
+                    # Use employee's custom time if available, otherwise use default from role rules
+                    if employee.start_time and employee.end_time:
+                        availability[iso_date][employee_name] = [f"{employee.start_time}-{employee.end_time}"]
                     else:
-                        # Fallback to default shift
                         rule = ROLE_RULES[employee.employee_type]
                         availability[iso_date][employee_name] = [rule["default_shift"]]
+    
+    # Save the updated employee configuration
+    save_employees()
+
 
 
 
@@ -571,7 +582,18 @@ def export_availability_to_excel(availability):
 
 
 def clear_availability(start_date, employees):
+    # Reset custom times for all non-freelancer employees
+    for emp in employees:
+        if emp.employee_type != 'Freelancer':
+            emp.start_time = None
+            emp.end_time = None
+    
+    # Save updated employee configurations
+    save_employees()
+    
+    # Initialize fresh availability data
     return init_availability(start_date, employees)
+
 
 
 
