@@ -1,66 +1,98 @@
 [
     {
         "name": "Helen",
-        "role": "Freelancer"
+        "role": "Freelancer",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Lili",
-        "role": "Freelancer"
+        "role": "Freelancer",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Matthew",
-        "role": "Freelancer"
+        "role": "Freelancer",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Ka",
-        "role": "Freelancer"
+        "role": "Freelancer",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Kit",
-        "role": "Freelancer"
+        "role": "Freelancer",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Paul",
-        "role": "Freelancer"
+        "role": "Freelancer",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Waiyee",
-        "role": "economic"
+        "role": "economic",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Cindy",
-        "role": "economic"
+        "role": "economic",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Ivy",
-        "role": "Entertainment"
+        "role": "Entertainment",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Aasta",
-        "role": "Entertainment"
+        "role": "Entertainment",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Carol",
-        "role": "Entertainment"
+        "role": "Entertainment",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Jackie",
-        "role": "KoreanEntertainment"
+        "role": "KoreanEntertainment",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Tiffany",
-        "role": "KoreanEntertainment"
+        "role": "KoreanEntertainment",
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Daisy",
-        "role": "SeniorEditor"
+        "role": "SeniorEditor",
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Tak",
-        "role": "SeniorEditor"
+        "role": "SeniorEditor",
+        "start_time": "9",
+        "end_time": "18"
     },
     {
         "name": "Caper",
-        "role": "Freelancer"
+        "role": "Freelancer",
+        "start_time": null,
+        "end_time": null
     }
 ]

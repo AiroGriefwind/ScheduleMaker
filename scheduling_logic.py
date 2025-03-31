@@ -4,26 +4,26 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 class Employee:
-    def __init__(self, name, employee_type):
+    def __init__(self, name, employee_type, start_time=None, end_time=None):
         self.name = name
         self.employee_type = employee_type
-        
+        self.start_time = start_time
+        self.end_time = end_time
+
     def get_available_shifts(self):
-        # Get shifts based on employee type from the rule storage
         if self.employee_type in ROLE_RULES:
             rule = ROLE_RULES[self.employee_type]
             if rule["rule_type"] == "shift_based":
-                # For shift-based employees like freelancers
                 weekday_shifts = list(rule["shifts"]["weekday"].values())
                 weekend_shifts = list(rule["shifts"]["weekend"].values())
                 return list(set(weekday_shifts + weekend_shifts))
             elif rule["rule_type"] == "fixed_time":
-                # For fixed-time employees like senior editors
-                shifts = [rule["default_shift"]]
-                if "special_duty" in rule:
-                    shifts.append(rule["special_duty"]["shift"])
-                return shifts
-        return []  # Default if no rules found
+                 # Return formatted shift time even when empty
+                if self.start_time and self.end_time:
+                    return [f"{self.start_time}-{self.end_time}"]
+                return [rule.get("default_shift", "Shift Not Set")]
+        return []
+
         
 
 
@@ -142,9 +142,11 @@ def load_employees():
     try:
         with open('employees.json', 'r') as f:
             data = json.load(f)
-            return [Employee(emp["name"], emp["role"]) for emp in data]
+            return [Employee(emp["name"], emp["role"], emp.get("start_time"), emp.get("end_time")) for emp in data]
     except FileNotFoundError:
         return init_employees()
+
+
 
 def sync_availability():
     employees = load_employees()
@@ -190,47 +192,59 @@ def validate_synchronization():
 
 def save_employees():
     with open('employees.json', 'w') as f:
-        json.dump([{"name": emp.name, "role": emp.employee_type} for emp in EMPLOYEES], f, indent=4, separators=(',', ': '))
+        json.dump([{
+            "name": emp.name,
+            "role": emp.employee_type,
+            "start_time": emp.start_time,
+            "end_time": emp.end_time
+        } for emp in EMPLOYEES], f, indent=4, separators=(',', ': '))
 
-def add_employee(name, role):
+
+def add_employee(name, role, start_time=None, end_time=None):
     if role == 'Freelancer':
         new_emp = Freelancer(name)
-    elif role == 'SeniorEditor':
-        new_emp = SeniorEditor(name)
     else:
-        new_emp = Employee(name, role)
+        new_emp = Employee(name, role, start_time, end_time)
     
     EMPLOYEES.append(new_emp)
     save_employees()
     
-    # Update availability for all dates
     availability = load_data()
     
-    if availability is None: # Ensures availability initialization handles null cases
+    if availability is None:
         availability = init_availability(datetime.now(), [new_emp])
     else:
         for date in availability:
-            availability[date][new_emp.name] = [] # Use emp.name
+            if role != 'Freelancer' and start_time and end_time:
+                availability[date][new_emp.name] = [f"{start_time}-{end_time}"]
+            else:
+                availability[date][new_emp.name] = []
     save_data(availability)
     
     return new_emp
 
-def edit_employee(old_name, new_name, new_role):
-    # Find and update employee
+
+def edit_employee(old_name, new_name, new_role, new_start_time=None, new_end_time=None):
     for emp in EMPLOYEES:
         if emp.name == old_name:
             emp.name = new_name
             emp.employee_type = new_role
+            if new_role != 'Freelancer':
+                emp.start_time = new_start_time
+                emp.end_time = new_end_time
             break
 
-    # Update availability records
     availability = load_data()
     for date in availability:
-        if old_name in availability[date]:  # Use old_name
-            availability[date][new_name] = availability[date].pop(old_name)  # Use new_name and old_name
+        if old_name in availability[date]:
+            availability[date][new_name] = availability[date].pop(old_name)
+            if new_role != 'Freelancer' and new_start_time and new_end_time:
+                availability[date][new_name] = [shift for shift in availability[date][new_name] if shift in ["AL", "CL", "PH", "ON", "自由調配"]]
+                availability[date][new_name].append(f"{new_start_time}-{new_end_time}")
     save_data(availability)
-    save_employees()  # Persist changes to employees.json
-    sync_availability()  # Ensure availability is in sync with employees
+    save_employees()
+    sync_availability()
+
 
 def delete_employee(name):
     global EMPLOYEES
