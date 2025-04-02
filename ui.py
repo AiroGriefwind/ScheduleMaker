@@ -13,7 +13,7 @@ from scheduling_logic import (EMPLOYEES, Freelancer,
                                generate_schedule, import_from_excel, 
                                edit_employee, load_employees, ROLE_RULES, add_employee, delete_employee,sync_availability,
                               export_availability_to_excel, clear_availability)
-from datetime import datetime
+from datetime import datetime, timedelta # Import for Calendar UI
 
 class AvailabilityEditor(QMainWindow):
     def __init__(self, start_date=datetime(2025, 3, 17)):
@@ -479,11 +479,31 @@ class AvailabilityEditor(QMainWindow):
         weeks = []
         current_week = []
         
+        # Find the first date
+        if sorted_dates:
+            first_date = datetime.strptime(sorted_dates[0], "%Y-%m-%d")
+            
+            # If the first date is not a Sunday, add placeholder dates
+            if first_date.weekday() != 6:  # 6 is Sunday in Python's weekday() (0 is Monday)
+                # Calculate days to go back to reach the previous Sunday
+                days_to_previous_sunday = (first_date.weekday() + 1) % 7
+                
+                # Create placeholder dates for the beginning of the first week
+                for i in range(days_to_previous_sunday, 0, -1):
+                    placeholder_date = (first_date - timedelta(days=i)).strftime("%Y-%m-%d")
+                    # Add placeholder to availability if it doesn't exist
+                    if placeholder_date not in self.availability:
+                        self.availability[placeholder_date] = {emp.name: [] for emp in self.employees}
+                    
+                    # Add to sorted_dates
+                    sorted_dates.insert(0, placeholder_date)
+        
+        # Now group by weeks with Sunday as first day
         for date_str in sorted_dates:
             date = datetime.strptime(date_str, "%Y-%m-%d")
             
             # If this is the first date or it's a Sunday, start a new week
-            if not current_week or date.weekday() == 6:  # In Python, Monday is 0 and Sunday is 6
+            if not current_week or date.weekday() == 6:  # 6 is Sunday in Python
                 if current_week:  # If we have a non-empty current week, add it to weeks
                     weeks.append(current_week)
                 current_week = [date_str]
