@@ -38,55 +38,55 @@
     {
         "name": "Waiyee",
         "role": "economics",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Cindy",
         "role": "economics",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Ivy",
         "role": "Entertainment",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Aasta",
         "role": "Entertainment",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Carol",
         "role": "Entertainment",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Jackie",
         "role": "KoreanEntertainment",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Tiffany",
         "role": "KoreanEntertainment",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Daisy",
         "role": "SeniorEditor",
-        "start_time": "13",
-        "end_time": "22"
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Tak",
         "role": "SeniorEditor",
-        "start_time": "13",
-        "end_time": "22"
+        "start_time": null,
+        "end_time": null
     }
 ]

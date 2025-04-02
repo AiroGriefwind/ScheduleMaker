@@ -293,10 +293,10 @@ def generate_schedule(availability, start_date, export_to_excel=True):
     
     # Generate schedules for each employee type
     warnings.extend(generate_freelancer_schedule(availability, start_date, schedule))
-    warnings.extend(generate_senior_editor_schedule(availability, start_date, schedule))
-    #warnings.extend(generate_economics_schedule(availability, start_date, schedule))
-    #warnings.extend(generate_entertainment_schedule(availability, start_date, schedule))
-    #warnings.extend(generate_korean_entertainment_schedule(availability, start_date, schedule))
+    warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, "SeniorEditor"))
+    warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, "economics"))
+    warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, "Entertainment"))
+    warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, "KoreanEntertainment"))
     
     # Store the generated schedule
     _last_generated_schedule = schedule
@@ -362,40 +362,67 @@ def generate_freelancer_schedule(availability, start_date, schedule):
     return warnings
 
 
-def generate_senior_editor_schedule(availability, start_date, schedule):
+def generate_fulltime_schedule(availability, start_date, schedule, role_type):
     """
-    Generates schedules for senior editors based on their rules and availability.
-    Integrates senior editor shifts into existing schedule entries.
+    Generates schedules for fulltime employees of a specific role type.
+    Handles custom shift times and leave types from the actual JSON structure.
     """
     warnings = []
     date_strings = sorted(availability.keys())
     dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
     
-    senior_editor_rules = ROLE_RULES["SeniorEditor"]
-    senior_editor_shift = senior_editor_rules["default_shift"]
+    role_rules = ROLE_RULES[role_type]
+    default_shift = role_rules["default_shift"]
     
-    senior_editors = [emp.name for emp in EMPLOYEES if emp.employee_type == "SeniorEditor"]
+    employees = [emp.name for emp in EMPLOYEES if emp.employee_type == role_type]
     
     for date in dates:
         date_str = date.strftime("%d/%m/%Y")
-        senior_editor_shifts = {}
+        iso_date_str = date.strftime("%Y-%m-%d")
+        employee_shifts = {}
         
-        # Assign shifts to senior editors
-        for name in senior_editors:
-            senior_editor_shifts[name] = senior_editor_shift
+        # Assign shifts to employees based on actual availability
+        for name in employees:
+            # Check if the employee has availability data for this date
+            if iso_date_str in availability and name in availability[iso_date_str]:
+                employee_data = availability[iso_date_str][name]
+                
+                # Check if there's any data for this employee on this date
+                if employee_data and len(employee_data) > 0:
+                    # Check for leave types or custom shifts
+                    first_entry = employee_data[0]
+                    leave_types = ["AL", "CL", "PH", "ON", "自由調配"]
+                    
+                    if first_entry in leave_types:
+                        # This is a leave entry
+                        employee_shifts[name] = first_entry
+                    elif "-" in first_entry:
+                        # This is a custom shift time
+                        employee_shifts[name] = first_entry
+                    else:
+                        # Unknown format, use default
+                        employee_shifts[name] = default_shift
+                else:
+                    # Empty array means unavailable
+                    employee_shifts[name] = "off"
+            else:
+                # If no data exists, use default shift
+                employee_shifts[name] = default_shift
         
         # Find the existing entry in the schedule for this date
         existing_entry = next((entry for entry in schedule if entry["Date"] == date_str), None)
         
         if existing_entry:
-            # Update the existing entry with senior editor shifts
-            existing_entry.update(senior_editor_shifts)
+            # Update the existing entry with employee shifts
+            existing_entry.update(employee_shifts)
         else:
-            # Create a new entry if no existing entry is found (should not happen)
-            schedule_entry = {"Date": date_str, **senior_editor_shifts}
+            # Create a new entry if no existing entry is found
+            schedule_entry = {"Date": date_str, **employee_shifts}
             schedule.append(schedule_entry)
     
     return warnings
+
+
 
 
 def import_from_google_form(file_path):
