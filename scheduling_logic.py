@@ -277,9 +277,6 @@ def delete_employee(name):
         print(f"Employee with name {name} not found.")
 
 
-
-
-# Add this at the module level in scheduling_logic.py
 _last_generated_schedule = []
 
 def get_last_generated_schedule():
@@ -289,18 +286,21 @@ def get_last_generated_schedule():
 def generate_schedule(availability, start_date, export_to_excel=True):
     """
     Main function to generate schedules for all employee types.
-    Delegates schedule generation to specific functions based on employee type.
+    Dynamically generates schedules for all roles defined in ROLE_RULES.
     """
     global _last_generated_schedule
     warnings = []
     schedule = []
     
-    # Generate schedules for each employee type
-    warnings.extend(generate_freelancer_schedule(availability, start_date, schedule))
-    warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, "SeniorEditor"))
-    warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, "economics"))
-    warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, "Entertainment"))
-    warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, "KoreanEntertainment"))
+    # Generate freelancer schedule first (special handling)
+    if "Freelancer" in ROLE_RULES:
+        warnings.extend(generate_freelancer_schedule(availability, start_date, schedule))
+    
+    # Generate schedules for all other role types dynamically
+    for role_type in ROLE_RULES:
+        # Skip Freelancer as it's already handled separately
+        if role_type != "Freelancer":
+            warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, role_type))
     
     # Store the generated schedule
     _last_generated_schedule = schedule
@@ -311,6 +311,7 @@ def generate_schedule(availability, start_date, export_to_excel=True):
         df.to_excel("schedule_with_senior_editors.xlsx", index=False)
     
     return warnings
+
 
 
 def generate_freelancer_schedule(availability, start_date, schedule):

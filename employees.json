@@ -74,8 +74,8 @@
     {
         "name": "Tiffany",
         "role": "Plastic",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Daisy",
@@ -92,7 +92,13 @@
     {
         "name": "Caroline",
         "role": "Plastic",
-        "start_time": "15",
-        "end_time": "24"
+        "start_time": null,
+        "end_time": null
+    },
+    {
+        "name": "CandyC",
+        "role": "\u81c9\u66f8",
+        "start_time": "8",
+        "end_time": "17"
     }
 ]

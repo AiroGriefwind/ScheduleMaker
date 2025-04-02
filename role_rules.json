@@ -45,5 +45,9 @@
     "Plastic": {
         "rule_type": "fixed_time",
         "default_shift": "10-19"
+    },
+    "\u81c9\u66f8": {
+        "rule_type": "fixed_time",
+        "default_shift": "10-19"
     }
 }
