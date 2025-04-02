@@ -1,0 +1,49 @@
+{
+    "Freelancer": {
+        "rule_type": "shift_based",
+        "shifts": {
+            "weekday": {
+                "early": "7-16",
+                "day": "0930-1830",
+                "night": "15-24"
+            },
+            "weekend": {
+                "early": "7-16",
+                "day": "10-19",
+                "night": "15-24"
+            }
+        },
+        "requirements": {
+            "weekday": {
+                "early": 1,
+                "day": 1,
+                "night": 2
+            },
+            "weekend": {
+                "early": 1,
+                "day": 1,
+                "night": 1
+            }
+        }
+    },
+    "SeniorEditor": {
+        "rule_type": "fixed_time",
+        "default_shift": "13-22"
+    },
+    "economics": {
+        "rule_type": "fixed_time",
+        "default_shift": "10-19"
+    },
+    "Entertainment": {
+        "rule_type": "fixed_time",
+        "default_shift": "10-19"
+    },
+    "KoreanEntertainment": {
+        "rule_type": "fixed_time",
+        "default_shift": "10-19"
+    },
+    "Plastic": {
+        "rule_type": "fixed_time",
+        "default_shift": "10-19"
+    }
+}

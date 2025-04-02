@@ -3,6 +3,10 @@ import pandas as pd
 #from collections import deque  
 from datetime import datetime, timedelta
 
+def initialize():
+    """Initialize the module by loading data from files"""
+    load_role_rules()
+
 class Employee:
     def __init__(self, name, employee_type, start_time=None, end_time=None):
         self.name = name
@@ -621,13 +625,40 @@ def clear_availability(start_date, employees):
     # Initialize fresh availability data
     return init_availability(start_date, employees)
 
-
-
-
-# Main logic for testing
-if __name__ == "__main__":
-    # Define start date for testing
-    start_date = datetime.strptime("2025-03-19", "%Y-%m-%d")
+def add_role(role_name, role_config):
+    """
+    Add a new role type to ROLE_RULES
     
+    Parameters:
+    role_name (str): Name of the new role
+    role_config (dict): Configuration for the role
+    """
+    global ROLE_RULES
+    
+    # Add the new role to ROLE_RULES
+    ROLE_RULES[role_name] = role_config
+    
+    # Save the updated ROLE_RULES to a file
+    save_role_rules()
+
+def save_role_rules():
+    """Save the ROLE_RULES dictionary to a JSON file"""
+    try:
+        with open('role_rules.json', 'w') as f:
+            json.dump(ROLE_RULES, f, indent=4)
+    except Exception as e:
+        print(f"Error saving role rules: {str(e)}")
+
+def load_role_rules():
+    """Load ROLE_RULES from JSON file if it exists"""
+    global ROLE_RULES
+    try:
+        with open('role_rules.json', 'r') as f:
+            ROLE_RULES = json.load(f)
+    except FileNotFoundError:
+        # If file doesn't exist, use the default ROLE_RULES
+        pass
+
+initialize()    
     
     

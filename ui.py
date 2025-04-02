@@ -122,6 +122,10 @@ class AvailabilityEditor(QMainWindow):
         import_form_btn = QPushButton("從Google表單導入")
         import_form_btn.clicked.connect(self.import_from_google_form)
 
+        add_role_btn = QPushButton("Add Role")
+        add_role_btn.clicked.connect(self.add_new_role)
+        button_layout.addWidget(add_role_btn)
+
         button_layout.addWidget(save_btn)
         button_layout.addWidget(generate_btn)
         button_layout.addWidget(import_btn)
@@ -133,7 +137,119 @@ class AvailabilityEditor(QMainWindow):
 
         layout.addLayout(button_layout)
 
-    
+    def add_new_role(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add New Role")
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Role name input
+        layout.addWidget(QLabel("Role Name:"))
+        role_name_input = QLineEdit()
+        layout.addWidget(role_name_input)
+        
+        # Rule type selection
+        layout.addWidget(QLabel("Rule Type:"))
+        rule_type_combo = QComboBox()
+        rule_type_combo.addItems(["fixed_time", "shift_based"])
+        layout.addWidget(rule_type_combo)
+        
+        # Default shift for fixed_time roles
+        layout.addWidget(QLabel("Default Shift (e.g., 10-19):"))
+        default_shift_input = QLineEdit()
+        layout.addWidget(default_shift_input)
+        
+        # Container for shift-based settings (initially hidden)
+        shift_based_container = QWidget()
+        shift_layout = QVBoxLayout(shift_based_container)
+        
+        # Weekday shifts
+        shift_layout.addWidget(QLabel("Weekday Shifts (comma-separated, e.g., 7-16,10-19,15-24):"))
+        weekday_shifts_input = QLineEdit()
+        shift_layout.addWidget(weekday_shifts_input)
+        
+        # Weekend shifts
+        shift_layout.addWidget(QLabel("Weekend Shifts (comma-separated, e.g., 7-16,10-19,15-24):"))
+        weekend_shifts_input = QLineEdit()
+        shift_layout.addWidget(weekend_shifts_input)
+        
+        layout.addWidget(shift_based_container)
+        shift_based_container.setVisible(False)
+        
+        # Show/hide shift-based settings based on rule type
+        def on_rule_type_changed(rule_type):
+            is_shift_based = (rule_type == "shift_based")
+            shift_based_container.setVisible(is_shift_based)
+            default_shift_input.setEnabled(not is_shift_based)
+        
+        rule_type_combo.currentTextChanged.connect(on_rule_type_changed)
+        
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(lambda: self.save_new_role(
+            dialog, 
+            role_name_input.text(),
+            rule_type_combo.currentText(),
+            default_shift_input.text(),
+            weekday_shifts_input.text(),
+            weekend_shifts_input.text()
+        ))
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        dialog.exec_()
+
+    def save_new_role(self, dialog, role_name, rule_type, default_shift, weekday_shifts, weekend_shifts):
+        if not role_name:
+            QMessageBox.warning(self, "Error", "Role name cannot be empty")
+            return
+        
+        if role_name in ROLE_RULES:
+            QMessageBox.warning(self, "Error", f"Role '{role_name}' already exists")
+            return
+        
+        if rule_type == "fixed_time" and not default_shift:
+            QMessageBox.warning(self, "Error", "Default shift is required for fixed_time roles")
+            return
+        
+        if rule_type == "shift_based" and (not weekday_shifts or not weekend_shifts):
+            QMessageBox.warning(self, "Error", "Weekday and weekend shifts are required for shift_based roles")
+            return
+        
+        # Create new role configuration
+        new_role = {"rule_type": rule_type}
+        
+        if rule_type == "fixed_time":
+            new_role["default_shift"] = default_shift
+        else:  # shift_based
+            weekday_shift_list = [s.strip() for s in weekday_shifts.split(",")]
+            weekend_shift_list = [s.strip() for s in weekend_shifts.split(",")]
+            
+            weekday_shift_dict = {f"shift{i+1}": shift for i, shift in enumerate(weekday_shift_list)}
+            weekend_shift_dict = {f"shift{i+1}": shift for i, shift in enumerate(weekend_shift_list)}
+            
+            new_role["shifts"] = {
+                "weekday": weekday_shift_dict,
+                "weekend": weekend_shift_dict
+            }
+            
+            # Default requirements (can be enhanced in future versions)
+            new_role["requirements"] = {
+                "weekday": {f"shift{i+1}": 1 for i in range(len(weekday_shift_list))},
+                "weekend": {f"shift{i+1}": 1 for i in range(len(weekend_shift_list))}
+            }
+        
+        # Add the new role to ROLE_RULES
+        from scheduling_logic import add_role
+        add_role(role_name, new_role)
+        
+        # Update UI components
+        self.role_combo.clear()
+        self.role_combo.addItems(["All"] + list(ROLE_RULES.keys()))
+        
+        QMessageBox.information(self, "Success", f"Role '{role_name}' added successfully")
+        dialog.accept()
+
 
     def add_new_employee(self):
         dialog = QDialog(self)

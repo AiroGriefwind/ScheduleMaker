@@ -73,20 +73,26 @@
     },
     {
         "name": "Tiffany",
-        "role": "KoreanEntertainment",
-        "start_time": null,
-        "end_time": null
+        "role": "Plastic",
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Daisy",
         "role": "SeniorEditor",
-        "start_time": "10",
-        "end_time": "19"
+        "start_time": null,
+        "end_time": null
     },
     {
         "name": "Tak",
         "role": "SeniorEditor",
         "start_time": null,
         "end_time": null
+    },
+    {
+        "name": "Caroline",
+        "role": "Plastic",
+        "start_time": "15",
+        "end_time": "24"
     }
 ]
