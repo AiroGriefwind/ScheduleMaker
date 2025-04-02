@@ -8,13 +8,15 @@ def initialize():
     load_role_rules()
 
 class Employee:
-    def __init__(self, name, employee_type, start_time=None, end_time=None):
+    def __init__(self, name, employee_type, additional_roles=None, start_time=None, end_time=None):
         self.name = name
-        self.employee_type = employee_type
+        self.employee_type = employee_type  # Primary role (Role1)
+        self.additional_roles = additional_roles or []  # List of additional roles
         self.start_time = start_time
         self.end_time = end_time
 
     def get_available_shifts(self):
+        # Use primary role for shift determination
         if self.employee_type in ROLE_RULES:
             rule = ROLE_RULES[self.employee_type]
             if rule["rule_type"] == "shift_based":
@@ -22,11 +24,15 @@ class Employee:
                 weekend_shifts = list(rule["shifts"]["weekend"].values())
                 return list(set(weekday_shifts + weekend_shifts))
             elif rule["rule_type"] == "fixed_time":
-                 # Return formatted shift time even when empty
                 if self.start_time and self.end_time:
                     return [f"{self.start_time}-{self.end_time}"]
                 return [rule.get("default_shift", "Shift Not Set")]
         return []
+    
+    def get_all_roles(self):
+        """Return all roles (primary + additional)"""
+        return [self.employee_type] + self.additional_roles
+
 
         
 
@@ -152,7 +158,13 @@ def load_employees():
     try:
         with open('employees.json', 'r') as f:
             data = json.load(f)
-            return [Employee(emp["name"], emp["role"], emp.get("start_time"), emp.get("end_time")) for emp in data]
+            return [Employee(
+                emp["name"], 
+                emp["role"], 
+                emp.get("additional_roles", []),
+                emp.get("start_time"), 
+                emp.get("end_time")
+            ) for emp in data]
     except FileNotFoundError:
         return init_employees()
 
@@ -205,16 +217,18 @@ def save_employees():
         json.dump([{
             "name": emp.name,
             "role": emp.employee_type,
+            "additional_roles": emp.additional_roles,
             "start_time": emp.start_time,
             "end_time": emp.end_time
         } for emp in EMPLOYEES], f, indent=4, separators=(',', ': '))
 
 
-def add_employee(name, role, start_time=None, end_time=None):
+def add_employee(name, role, additional_roles=None, start_time=None, end_time=None):
     if role == 'Freelancer':
         new_emp = Freelancer(name)
+        new_emp.additional_roles = additional_roles or []
     else:
-        new_emp = Employee(name, role, start_time, end_time)
+        new_emp = Employee(name, role, additional_roles, start_time, end_time)
     
     EMPLOYEES.append(new_emp)
     save_employees()
@@ -234,11 +248,12 @@ def add_employee(name, role, start_time=None, end_time=None):
     return new_emp
 
 
-def edit_employee(old_name, new_name, new_role, new_start_time=None, new_end_time=None):
+def edit_employee(old_name, new_name, new_role, additional_roles=None, new_start_time=None, new_end_time=None):
     for emp in EMPLOYEES:
         if emp.name == old_name:
             emp.name = new_name
             emp.employee_type = new_role
+            emp.additional_roles = additional_roles or []
             if new_role != 'Freelancer':
                 emp.start_time = new_start_time
                 emp.end_time = new_end_time

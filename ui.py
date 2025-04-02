@@ -259,42 +259,126 @@ class AvailabilityEditor(QMainWindow):
         layout = QVBoxLayout(dialog)
         
         name_input = QLineEdit()
-        role_input = QComboBox()
-        role_input.addItems(list(ROLE_RULES.keys()))
+        
+        # Role section with add/remove functionality
+        role_section = QWidget()
+        role_layout = QVBoxLayout(role_section)
+        role_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Primary role (Role1)
+        primary_role_layout = QHBoxLayout()
+        primary_role_label = QLabel("Role1 (Primary):")
+        primary_role_input = QComboBox()
+        primary_role_input.addItems(list(ROLE_RULES.keys()))
+        primary_role_layout.addWidget(primary_role_label)
+        primary_role_layout.addWidget(primary_role_input)
+        
+        # Add button for additional roles
+        add_role_btn = QPushButton("+")
+        add_role_btn.setFixedWidth(30)
+        primary_role_layout.addWidget(add_role_btn)
+        
+        role_layout.addLayout(primary_role_layout)
+        
+        # Container for additional roles
+        additional_roles_container = QWidget()
+        additional_roles_layout = QVBoxLayout(additional_roles_container)
+        additional_roles_layout.setContentsMargins(0, 0, 0, 0)
+        role_layout.addWidget(additional_roles_container)
+        
+        # List to track additional role inputs
+        additional_role_inputs = []
+        
+        # Function to add a new role input
+        def add_role_input():
+            role_row = QHBoxLayout()
+            role_label = QLabel(f"Role{len(additional_role_inputs) + 2}:")
+            role_combo = QComboBox()
+            role_combo.addItems(list(ROLE_RULES.keys()))
+            
+            remove_btn = QPushButton("-")
+            remove_btn.setFixedWidth(30)
+            
+            role_row.addWidget(role_label)
+            role_row.addWidget(role_combo)
+            role_row.addWidget(remove_btn)
+            
+            # Create a container for this row
+            row_container = QWidget()
+            row_container.setLayout(role_row)
+            
+            additional_roles_layout.addWidget(row_container)
+            additional_role_inputs.append((row_container, role_combo))
+            
+            # Connect remove button
+            remove_btn.clicked.connect(lambda: remove_role_input(row_container))
+        
+        # Function to remove a role input
+        def remove_role_input(container):
+            # Find and remove from tracking list
+            for i, (cont, combo) in enumerate(additional_role_inputs):
+                if cont == container:
+                    additional_role_inputs.pop(i)
+                    break
+            
+            # Remove from UI
+            container.setParent(None)
+            
+            # Update labels for remaining roles
+            for i, (cont, combo) in enumerate(additional_role_inputs):
+                cont.layout().itemAt(0).widget().setText(f"Role{i + 2}:")
+        
+        # Connect add button
+        add_role_btn.clicked.connect(add_role_input)
+        
+        # Time inputs
         start_time_input = QLineEdit()
         end_time_input = QLineEdit()
         
+        # Build the form
         layout.addWidget(QLabel("Name:"))
         layout.addWidget(name_input)
-        layout.addWidget(QLabel("Role:"))
-        layout.addWidget(role_input)
+        layout.addWidget(role_section)
         layout.addWidget(QLabel("Start Time (HH:MM):"))
         layout.addWidget(start_time_input)
         layout.addWidget(QLabel("End Time (HH:MM):"))
         layout.addWidget(end_time_input)
         
-        save_btn = QPushButton("Save")
-        save_btn.clicked.connect(lambda: self.save_new_employee(dialog, name_input.text(), role_input.currentText(), start_time_input.text(), end_time_input.text()))
-        
-        # Add role change listener
-        def role_changed(role):
+        # Add role change listener for primary role
+        def primary_role_changed(role):
             is_freelancer = (role == "Freelancer")
             start_time_input.setEnabled(not is_freelancer)
             end_time_input.setEnabled(not is_freelancer)
         
-        role_input.currentTextChanged.connect(role_changed)
-        role_changed(role_input.currentText())  # Initial check
-
-        layout.addWidget(save_btn)
+        primary_role_input.currentTextChanged.connect(primary_role_changed)
+        primary_role_changed(primary_role_input.currentText())  # Initial check
         
+        # Save button
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(lambda: self.save_new_employee(
+            dialog, 
+            name_input.text(), 
+            primary_role_input.currentText(),
+            [combo.currentText() for _, combo in additional_role_inputs],
+            start_time_input.text(), 
+            end_time_input.text()
+        ))
+        
+        layout.addWidget(save_btn)
         dialog.exec_()
 
-    def save_new_employee(self, dialog, name, role, start_time, end_time):
-        if role != 'Freelancer' and (not start_time or not end_time):
-            QMessageBox.warning(self, "Error", "Please provide start and end times for non-freelancer employees.")
+    def save_new_employee(self, dialog, new_name, new_role, additional_roles=None, new_start_time=None, new_end_time=None):
+        if new_role != 'Freelancer' and (not new_start_time or not new_end_time):
+            QMessageBox.warning(self, "Error", "非自由工作者必須提供上下班時間")
             return
         
-        add_employee(name, role, start_time, end_time)
+        # For freelancers, ignore time inputs and use default rules
+        if new_role == 'Freelancer':
+            add_employee(new_name, new_role, additional_roles)
+        else:
+            add_employee(new_name, new_role, additional_roles, new_start_time, new_end_time)
+        
+        # Refresh data and UI
         self.employees = load_employees()
         self.availability = load_data()
         self.update_employee_list(self.role_combo.currentText())
@@ -594,8 +678,11 @@ class AvailabilityEditor(QMainWindow):
         for i in reversed(range(self.employee_list_layout.count())):
             self.employee_list_layout.itemAt(i).widget().setParent(None)
 
-        # Filter employees by role
-        filtered_employees = [emp.name for emp in self.employees if role == "All" or emp.employee_type == role]
+        # Filter employees by role (primary or additional)
+        filtered_employees = []
+        for emp in self.employees:
+            if role == "All" or role == emp.employee_type or role in getattr(emp, 'additional_roles', []):
+                filtered_employees.append(emp.name)
 
         for name in filtered_employees:
             btn = QPushButton(name)
@@ -612,6 +699,7 @@ class AvailabilityEditor(QMainWindow):
                 lambda pos, btn=btn, n=name: self.show_context_menu(pos, btn, n)
             )
             self.employee_list_layout.addWidget(btn)
+
     
     def select_employee(self, name):
         self.current_employee_name = name
@@ -644,49 +732,134 @@ class AvailabilityEditor(QMainWindow):
             layout = QVBoxLayout(dialog)
             
             name_input = QLineEdit(old_employee.name)
-            role_input = QComboBox()
-            role_input.addItems(list(ROLE_RULES.keys()))
-            role_input.setCurrentText(old_employee.employee_type)
+            
+            # Role section with add/remove functionality
+            role_section = QWidget()
+            role_layout = QVBoxLayout(role_section)
+            role_layout.setContentsMargins(0, 0, 0, 0)
+            
+            # Primary role (Role1)
+            primary_role_layout = QHBoxLayout()
+            primary_role_label = QLabel("Role1 (Primary):")
+            primary_role_input = QComboBox()
+            primary_role_input.addItems(list(ROLE_RULES.keys()))
+            primary_role_input.setCurrentText(old_employee.employee_type)
+            primary_role_layout.addWidget(primary_role_label)
+            primary_role_layout.addWidget(primary_role_input)
+            
+            # Add button for additional roles
+            add_role_btn = QPushButton("+")
+            add_role_btn.setFixedWidth(30)
+            primary_role_layout.addWidget(add_role_btn)
+            
+            role_layout.addLayout(primary_role_layout)
+            
+            # Container for additional roles
+            additional_roles_container = QWidget()
+            additional_roles_layout = QVBoxLayout(additional_roles_container)
+            additional_roles_layout.setContentsMargins(0, 0, 0, 0)
+            role_layout.addWidget(additional_roles_container)
+            
+            # List to track additional role inputs
+            additional_role_inputs = []
+            
+            # Function to add a new role input
+            def add_role_input(default_role=None):
+                role_row = QHBoxLayout()
+                role_label = QLabel(f"Role{len(additional_role_inputs) + 2}:")
+                role_combo = QComboBox()
+                role_combo.addItems(list(ROLE_RULES.keys()))
+                if default_role:
+                    role_combo.setCurrentText(default_role)
+                
+                remove_btn = QPushButton("-")
+                remove_btn.setFixedWidth(30)
+                
+                role_row.addWidget(role_label)
+                role_row.addWidget(role_combo)
+                role_row.addWidget(remove_btn)
+                
+                # Create a container for this row
+                row_container = QWidget()
+                row_container.setLayout(role_row)
+                
+                additional_roles_layout.addWidget(row_container)
+                additional_role_inputs.append((row_container, role_combo))
+                
+                # Connect remove button
+                remove_btn.clicked.connect(lambda: remove_role_input(row_container))
+            
+            # Function to remove a role input
+            def remove_role_input(container):
+                # Find and remove from tracking list
+                for i, (cont, combo) in enumerate(additional_role_inputs):
+                    if cont == container:
+                        additional_role_inputs.pop(i)
+                        break
+                
+                # Remove from UI
+                container.setParent(None)
+                
+                # Update labels for remaining roles
+                for i, (cont, combo) in enumerate(additional_role_inputs):
+                    cont.layout().itemAt(0).widget().setText(f"Role{i + 2}:")
+            
+            # Add existing additional roles
+            for role in getattr(old_employee, 'additional_roles', []):
+                add_role_input(role)
+            
+            # Connect add button
+            add_role_btn.clicked.connect(lambda: add_role_input())
+            
+            # Time inputs
             start_time_input = QLineEdit(old_employee.start_time or "")
             end_time_input = QLineEdit(old_employee.end_time or "")
             
+            # Build the form
             layout.addWidget(QLabel("Name:"))
             layout.addWidget(name_input)
-            layout.addWidget(QLabel("Role:"))
-            layout.addWidget(role_input)
+            layout.addWidget(role_section)
             layout.addWidget(QLabel("Start Time (HH:MM):"))
             layout.addWidget(start_time_input)
             layout.addWidget(QLabel("End Time (HH:MM):"))
             layout.addWidget(end_time_input)
             
+            # Add role change listener for primary role
+            def primary_role_changed(role):
+                is_freelancer = (role == "Freelancer")
+                start_time_input.setEnabled(not is_freelancer)
+                end_time_input.setEnabled(not is_freelancer)
+            
+            primary_role_input.currentTextChanged.connect(primary_role_changed)
+            primary_role_changed(primary_role_input.currentText())  # Initial check
+            
+            # Save button
             save_btn = QPushButton("Save")
-            save_btn.clicked.connect(lambda: self.save_edited_employee(dialog, old_employee.name, name_input.text(), role_input.currentText(), start_time_input.text(), end_time_input.text()))
+            save_btn.clicked.connect(lambda: self.save_edited_employee(
+                dialog, 
+                old_employee.name, 
+                name_input.text(), 
+                primary_role_input.currentText(),
+                [combo.currentText() for _, combo in additional_role_inputs],
+                start_time_input.text(), 
+                end_time_input.text()
+            ))
             
             layout.addWidget(save_btn)
-            
             dialog.exec_()
 
-    def save_edited_employee(self, dialog, old_name, new_name, new_role, new_start_time, new_end_time):
+
+    def save_edited_employee(self, dialog, old_name, new_name, new_role, additional_roles=None, new_start_time=None, new_end_time=None):
         if new_role != 'Freelancer' and (not new_start_time or not new_end_time):
-            QMessageBox.warning(self, "Error", "Please provide start and end times for non-freelancer employees.")
+            QMessageBox.warning(self, "Error", "非自由工作者必須提供上下班時間")
             return
         
-        edit_employee(old_name, new_name, new_role, new_start_time, new_end_time)
+        edit_employee(old_name, new_name, new_role, additional_roles, new_start_time, new_end_time)
         self.employees = load_employees()
         self.availability = load_data()
         self.update_employee_list(self.role_combo.currentText())
         self.update_calendar()
         dialog.accept()
-
-
-    # def save_edited_employee(self, dialog, old_name, new_name, new_role):
-    #     edit_employee(old_name, new_name, new_role)
-    #     self.employees = load_employees()
-    #     self.availability = load_data()  # Reload availability data
-    #     self.update_employee_list(self.role_combo.currentText())
-    #     self.update_calendar() # Refresh the calendar
-    #     dialog.accept()
-
 
     def save_data(self):
         sync_availability()  # Force synchronization
