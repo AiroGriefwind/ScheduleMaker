@@ -106,7 +106,8 @@ class AvailabilityEditor(QMainWindow):
         generate_btn.clicked.connect(self.generate_schedule)
         
         import_btn = QPushButton("從Excel導入")
-        import_btn.clicked.connect(lambda: self.import_from_excel("availability_export.xlsx"))
+        import_btn.clicked.connect(self.import_from_excel) 
+
         
         export_btn = QPushButton("導出時間表至Excel")
         export_btn.clicked.connect(self.export_availability_to_excel)
@@ -925,14 +926,29 @@ class AvailabilityEditor(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to import Google Form data: {str(e)}")
 
-    def import_from_excel(self, file_path):
+    def import_from_excel(self, file_path=None):
         try:
-            result = import_from_excel(file_path)
-            self.availability = load_data()  # Reload the data after import
-            self.update_calendar()  # Update the UI with the new data
-            QMessageBox.information(self, "Success", result)
+            from PySide6.QtWidgets import QFileDialog
+            
+            # Open file dialog if no path is provided
+            if not file_path:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Availability Excel File",
+                    "",
+                    "Excel Files (*.xlsx *.xls)"
+                )
+            
+            # Only proceed if user selected a file
+            if file_path:
+                from scheduling_logic import import_from_excel
+                result = import_from_excel(file_path)
+                self.availability = load_data()  # Reload the data after import
+                self.update_calendar()  # Update the UI with the new data
+                QMessageBox.information(self, "Success", result)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to import data: {str(e)}")
+
 
     def export_availability_to_excel(self):
         try:

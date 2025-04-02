@@ -618,6 +618,7 @@ def import_from_excel(file_path):
     save_employees()  # Save updated employee configurations
     return "Data imported successfully!"
 
+
 def export_availability_to_excel(availability, file_path=None):
     data = []
     for date, employees in availability.items():
