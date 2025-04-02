@@ -439,7 +439,7 @@ class AvailabilityEditor(QMainWindow):
                             widget.setChecked(True)
                         else:
                             # Handle leave types
-                            leaves = [lt for lt in ["AL", "CL", "PH", "ON", "自由調配"] if lt in recorded_shifts]
+                            leaves = [lt for lt in ["AL", "CL", "PH", "ON", "自由調配", "half off"] if lt in recorded_shifts]
                             if leaves:
                                 widget.setText(leaves[0])
                                 widget.setChecked(True)
@@ -468,7 +468,7 @@ class AvailabilityEditor(QMainWindow):
 
             if self.current_employee_name in self.availability[date_str]:
                 current_shifts = self.availability[date_str][self.current_employee_name]
-                leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配"}]
+                leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配", "half off"}]
                 
                 # Get employee and determine role type
                 current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
@@ -494,7 +494,7 @@ class AvailabilityEditor(QMainWindow):
                         else:
                             # For fixed shift employees: Handle as before
                             actual_shift = current_shifts[0] if current_shifts else ""
-                            if actual_shift and actual_shift not in ["AL", "CL", "PH", "ON", "自由調配"]:
+                            if actual_shift and actual_shift not in ["AL", "CL", "PH", "ON", "自由調配", "half off"]:
                                 widget.setText(actual_shift)
                                 widget.setChecked(True)
         
@@ -505,7 +505,7 @@ class AvailabilityEditor(QMainWindow):
             current_shifts = self.availability[date_str][self.current_employee_name]
             
             # Check if this is a leave type being toggled
-            leave_types = ["AL", "CL", "PH", "ON", "自由調配"]
+            leave_types = ["AL", "CL", "PH", "ON", "自由調配", "half off"]
             
             if shift in leave_types:
                 # Remove any existing leave types
@@ -808,7 +808,7 @@ class LeaveDialog(QDialog):
         layout = QVBoxLayout(self)
         
         self.leave_type_combo = QComboBox()
-        self.leave_type_combo.addItems(["AL", "CL", "PH", "ON", "自由調配"])
+        self.leave_type_combo.addItems(["AL", "CL", "PH", "ON", "自由調配", "half off"])
         layout.addWidget(self.leave_type_combo)
         
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)

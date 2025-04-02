@@ -243,7 +243,7 @@ def edit_employee(old_name, new_name, new_role, new_start_time=None, new_end_tim
         if old_name in availability[date]:
             current_shifts = availability[date][old_name]
             # Preserve leaves and special codes
-            leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配"}]
+            leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配", "half off"}]
             
             if new_role != 'Freelancer' and new_start_time and new_end_time:
                 new_shift = f"{new_start_time}-{new_end_time}"
@@ -396,7 +396,7 @@ def generate_fulltime_schedule(availability, start_date, schedule, role_type):
                 if employee_data and len(employee_data) > 0:
                     # Check for leave types or custom shifts
                     first_entry = employee_data[0]
-                    leave_types = ["AL", "CL", "PH", "ON", "自由調配"]
+                    leave_types = ["AL", "CL", "PH", "ON", "自由調配", "half off"]
                     
                     if first_entry in leave_types:
                         # This is a leave entry
@@ -490,7 +490,7 @@ def process_fulltime_availability(availability, row, employee_name):
             
             leave_value = row[col]
             
-            if pd.notna(leave_value) and leave_value in ["AL", "CL", "PH", "ON", "自由調配"]:
+            if pd.notna(leave_value) and leave_value in ["AL", "CL", "PH", "ON", "自由調配", "half off"]:
                 # This is a leave entry
                 availability[iso_date][employee_name] = [leave_value]
             else:
@@ -591,7 +591,7 @@ def import_from_excel(file_path):
         # Update employee configuration
         employee = next((emp for emp in EMPLOYEES if emp.name == employee_name), None)
         if employee and employee.employee_type != 'Freelancer':
-            if '-' in shift and shift not in ["AL", "CL", "PH", "ON", "自由調配"]:
+            if '-' in shift and shift not in ["AL", "CL", "PH", "ON", "自由調配", "half off"]:
                 start_time, end_time = shift.split('-')
                 employee.start_time = start_time
                 employee.end_time = end_time
