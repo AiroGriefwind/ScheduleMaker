@@ -84,11 +84,17 @@ def init_employees():
         return []
 
 def init_availability(start_date, employees):
+    # Find the previous Sunday to start the calendar
+    days_since_sunday = start_date.weekday() + 1  # +1 because Python's weekday() has Monday as 0
+    first_sunday = start_date - timedelta(days=days_since_sunday % 7)
+    
+    # Create 4 weeks (28 days) of availability starting from the first Sunday
     return {
-        (start_date + timedelta(days=i)).strftime("%Y-%m-%d"): {
-            employee.name: [] for employee in employees  # Use employee.name
-        } for i in range(7)
+        (first_sunday + timedelta(days=i)).strftime("%Y-%m-%d"): {
+            employee.name: [] for employee in employees
+        } for i in range(28)  # 4 weeks
     }
+
 
 def save_data(data):
     try:

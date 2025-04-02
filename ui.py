@@ -74,24 +74,25 @@ class AvailabilityEditor(QMainWindow):
 
         layout.addLayout(control_layout)
 
-        # Create a container for the calendar and selected employee label
+        # Calendar container modifications
         calendar_container = QVBoxLayout()
-
-        # Move "Currently Selected" label here
         self.selected_employee_label = QLabel(f"Currently Selected: {self.current_employee_name}")
-        self.selected_employee_label.setAlignment(Qt.AlignmentFlag.AlignLeft)  # Align to top-left
+        self.selected_employee_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         calendar_container.addWidget(self.selected_employee_label)
-
-        # Scroll area for the calendar
+        
+        # Scroll area for the calendar - adjust to better handle grid layout
         scroll = QScrollArea()
         self.calendar_widget = QWidget()
         self.calendar_layout = QGridLayout(self.calendar_widget)
+        self.calendar_layout.setSpacing(10)  # Add spacing between cells
+        self.calendar_layout.setContentsMargins(10, 10, 10, 10)  # Add margins
+        
         scroll.setWidget(self.calendar_widget)
         scroll.setWidgetResizable(True)
         
         # Add scroll area to calendar container
         calendar_container.addWidget(scroll)
-
+        
         # Add calendar container to main layout
         layout.addLayout(calendar_container)
 
@@ -354,11 +355,22 @@ class AvailabilityEditor(QMainWindow):
     def create_day_widget(self, date_str):
         day_widget = QWidget()
         day_layout = QVBoxLayout(day_widget)
-
-        # Date label setup
+        day_layout.setContentsMargins(5, 5, 5, 5)  # Add some padding
+        
+        # Date label setup with better formatting
         date = datetime.strptime(date_str, "%Y-%m-%d")
         day_label = QLabel(date.strftime("%a\n%d %b"))
         day_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # Change the styling to improve contrast
+        day_label.setStyleSheet("""
+            font-weight: bold; 
+            background-color: #404040; 
+            color: #ffffff;
+            padding: 5px;
+            border-radius: 3px;
+        """)
+
         day_layout.addWidget(day_label)
 
         current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
@@ -462,41 +474,65 @@ class AvailabilityEditor(QMainWindow):
                 item.widget().deleteLater()
 
         sorted_dates = sorted(self.availability.keys())
-        for col, date_str in enumerate(sorted_dates):
-            day_widget = self.create_day_widget(date_str)
-            self.calendar_layout.addWidget(day_widget, 0, col)
-
-            if self.current_employee_name in self.availability[date_str]:
-                current_shifts = self.availability[date_str][self.current_employee_name]
-                leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配", "half off"}]
+        
+        # Group dates by week (Sunday to Saturday)
+        weeks = []
+        current_week = []
+        
+        for date_str in sorted_dates:
+            date = datetime.strptime(date_str, "%Y-%m-%d")
+            
+            # If this is the first date or it's a Sunday, start a new week
+            if not current_week or date.weekday() == 6:  # In Python, Monday is 0 and Sunday is 6
+                if current_week:  # If we have a non-empty current week, add it to weeks
+                    weeks.append(current_week)
+                current_week = [date_str]
+            else:
+                current_week.append(date_str)
+        
+        # Add the last week if it's not empty
+        if current_week:
+            weeks.append(current_week)
+        
+        # Display each week as a row in the grid
+        for row, week in enumerate(weeks):
+            for col, date_str in enumerate(week):
+                day_widget = self.create_day_widget(date_str)
+                self.calendar_layout.addWidget(day_widget, row, col)
                 
-                # Get employee and determine role type
-                current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
-                is_freelancer = current_employee and current_employee.employee_type == "Freelancer"
-                
-                for i in range(day_widget.layout().count()):
-                    widget = day_widget.layout().itemAt(i).widget()
-                    if isinstance(widget, QPushButton):
-                        original_shift = widget.property("original_shift")
-                        
-                        if leaves:
-                            # Handle leave types
-                            widget.setText(leaves[0])
-                            widget.setChecked(True)
-                        elif is_freelancer:
-                            # For freelancers: Only check buttons for shifts that are selected
-                            if original_shift in current_shifts:
+                # Update button states for the current employee
+                if self.current_employee_name in self.availability[date_str]:
+                    current_shifts = self.availability[date_str][self.current_employee_name]
+                    leaves = [s for s in current_shifts if s in {"AL", "CL", "PH", "ON", "自由調配", "half off"}]
+                    
+                    # Get employee and determine role type
+                    current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
+                    is_freelancer = current_employee and current_employee.employee_type == "Freelancer"
+                    
+                    for i in range(day_widget.layout().count()):
+                        widget = day_widget.layout().itemAt(i).widget()
+                        if isinstance(widget, QPushButton):
+                            original_shift = widget.property("original_shift")
+                            
+                            if leaves:
+                                # Handle leave types
+                                widget.setText(leaves[0])
                                 widget.setChecked(True)
+                            elif is_freelancer:
+                                # For freelancers: Only check buttons for shifts that are selected
+                                if original_shift in current_shifts:
+                                    widget.setChecked(True)
+                                else:
+                                    widget.setChecked(False)
+                                # Always preserve original shift text
+                                widget.setText(original_shift)
                             else:
-                                widget.setChecked(False)
-                            # Always preserve original shift text
-                            widget.setText(original_shift)
-                        else:
-                            # For fixed shift employees: Handle as before
-                            actual_shift = current_shifts[0] if current_shifts else ""
-                            if actual_shift and actual_shift not in ["AL", "CL", "PH", "ON", "自由調配", "half off"]:
-                                widget.setText(actual_shift)
-                                widget.setChecked(True)
+                                # For fixed shift employees: Handle as before
+                                actual_shift = current_shifts[0] if current_shifts else ""
+                                if actual_shift and actual_shift not in ["AL", "CL", "PH", "ON", "自由調配", "half off"]:
+                                    widget.setText(actual_shift)
+                                    widget.setChecked(True)
+
         
         
 
