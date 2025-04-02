@@ -304,32 +304,28 @@ def get_last_generated_schedule():
     global _last_generated_schedule
     return _last_generated_schedule
 
-def generate_schedule(availability, start_date, export_to_excel=True):
-    """
-    Main function to generate schedules for all employee types.
-    Dynamically generates schedules for all roles defined in ROLE_RULES.
-    """
+def generate_schedule(availability, start_date, export_to_excel=True, file_path=None):
     global _last_generated_schedule
     warnings = []
     schedule = []
     
-    # Generate freelancer schedule first (special handling)
-    if "Freelancer" in ROLE_RULES:
-        warnings.extend(generate_freelancer_schedule(availability, start_date, schedule))
+    # Generate freelancer schedule
+    freelancer_warnings = generate_freelancer_schedule(availability, start_date, schedule)
+    warnings.extend(freelancer_warnings)
     
-    # Generate schedules for all other role types dynamically
+    # Generate schedules for each role type
     for role_type in ROLE_RULES:
-        # Skip Freelancer as it's already handled separately
-        if role_type != "Freelancer":
-            warnings.extend(generate_fulltime_schedule(availability, start_date, schedule, role_type))
+        if role_type != "Freelancer":  # Skip freelancers as they're handled separately
+            role_warnings = generate_fulltime_schedule(availability, start_date, schedule, role_type)
+            warnings.extend(role_warnings)
     
     # Store the generated schedule
     _last_generated_schedule = schedule
     
-    # Export schedule to Excel if requested
-    if export_to_excel:
+    # Export schedule to Excel if requested with the provided file path
+    if export_to_excel and file_path:
         df = pd.DataFrame(schedule)
-        df.to_excel("schedule_with_senior_editors.xlsx", index=False)
+        df.to_excel(file_path, index=False)
     
     return warnings
 
@@ -344,48 +340,49 @@ def generate_freelancer_schedule(availability, start_date, schedule):
     shift_counts = {name: {"early": 0, "day": 0, "night": 0} for name in FREELANCERS}
     
     for date in dates:
+        date_str = date.strftime("%Y-%m-%d")
         day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
         assigned_shifts = {name: 'off' for name in FREELANCERS}
         
         shifts = freelancer_rules["shifts"][day_type]
         shift_requirements = freelancer_rules["requirements"][day_type]
-        shifts_by_priority = sorted(
-            shift_requirements.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
         
-        for shift_name, required_count in shifts_by_priority:
+        # Process each shift type by priority
+        for shift_name, required_count in sorted(shift_requirements.items(), key=lambda x: x[1], reverse=True):
             shift_time = shifts[shift_name]
-            freelancer_weights = {}
-            date_str = date.strftime("%Y-%m-%d")
-            for name in FREELANCERS:
-                if name in availability[date_str]: # Ensure name exists in availability
-                    if shift_time in availability[date_str][name] and assigned_shifts[name] == 'off':
-                        available_shifts = len(availability[date_str][name])
-                        past_assignments = shift_counts[name][shift_name]
-                        freelancer_weights[name] = (1 / (available_shifts + 1)) + (1 / (past_assignments + 1))
-                else:
-                    warnings.append(f"Warning: {name} not found in availability for {date_str}")
-            sorted_freelancers = sorted(freelancer_weights.items(), key=lambda x: x[1], reverse=True)
             assigned_count = 0
-        
-            for name, _ in sorted_freelancers:
+            
+            # Find available freelancers for this shift
+            available_freelancers = []
+            for name in FREELANCERS:
+                if name in availability[date_str] and shift_time in availability[date_str][name] and assigned_shifts[name] == 'off':
+                    weight = (1 / (len(availability[date_str][name]) + 1)) + (1 / (shift_counts[name][shift_name] + 1))
+                    available_freelancers.append((name, weight))
+            
+            # Sort freelancers by weight (higher weight = higher priority)
+            available_freelancers.sort(key=lambda x: x[1], reverse=True)
+            
+            # Assign shifts
+            for name, _ in available_freelancers:
                 if assigned_count < required_count:
                     assigned_shifts[name] = shift_time
                     shift_counts[name][shift_name] += 1
                     assigned_count += 1
-        
+            
+            # Check for understaffing
             if assigned_count < required_count:
                 warnings.append(
-                    f"Warning: Shift {shift_name} on {date.strftime('%Y-%m-%d')} is understaffed. "
+                    f"Warning: {shift_name} shift on {date.strftime('%Y-%m-%d')} is understaffed. "
                     f"Required: {required_count}, Assigned: {assigned_count}."
                 )
-    
-        schedule_entry = {"Date": date.strftime("%d/%m/%Y"), **assigned_shifts}
+        
+        # Add this day's schedule to the overall schedule
+        schedule_entry = {"Date": date.strftime("%d/%m/%Y")}
+        schedule_entry.update(assigned_shifts)
         schedule.append(schedule_entry)
     
     return warnings
+
 
 
 def generate_fulltime_schedule(availability, start_date, schedule, role_type):
@@ -621,7 +618,7 @@ def import_from_excel(file_path):
     save_employees()  # Save updated employee configurations
     return "Data imported successfully!"
 
-def export_availability_to_excel(availability):
+def export_availability_to_excel(availability, file_path=None):
     data = []
     for date, employees in availability.items():
         for employee_name, shifts in employees.items():
@@ -629,9 +626,10 @@ def export_availability_to_excel(availability):
                 data.append({"Date": date, "Employee": employee_name, "Shift": shift})
     
     df = pd.DataFrame(data)
-    # Set Excel options to prevent excessive whitespace
-    df.to_excel("availability_export.xlsx", index=False, engine='openpyxl')
-    return "Availability exported successfully to Excel!"
+    # Use the provided file path or default
+    output_path = file_path or "availability_export.xlsx"
+    df.to_excel(output_path, index=False, engine='openpyxl')
+    return f"Availability exported successfully to {output_path}!"
 
 
 def clear_availability(start_date, employees):

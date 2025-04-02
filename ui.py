@@ -880,8 +880,7 @@ class AvailabilityEditor(QMainWindow):
             # Generate schedule without exporting to Excel
             warnings = generate_schedule(self.availability, self.start_date, export_to_excel=False)
             
-            # Get the schedule data from the function
-            # You need to modify your scheduling_logic.py to return the schedule data
+            # Get the schedule data
             from scheduling_logic import get_last_generated_schedule
             schedule_data = get_last_generated_schedule()
             
@@ -937,8 +936,22 @@ class AvailabilityEditor(QMainWindow):
 
     def export_availability_to_excel(self):
         try:
-            result = export_availability_to_excel(self.availability)
-            QMessageBox.information(self, "Success", result)
+            from PySide6.QtWidgets import QFileDialog
+            
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Availability to Excel",
+                "availability_export.xlsx",  # Default filename
+                "Excel Files (*.xlsx)"
+            )
+            
+            if file_path:  # Only proceed if user didn't cancel
+                # Add .xlsx extension if not already present
+                if not file_path.endswith('.xlsx'):
+                    file_path += '.xlsx'
+                    
+                result = export_availability_to_excel(self.availability, file_path)
+                QMessageBox.information(self, "Success", result)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to export availability: {str(e)}")
 
@@ -1023,12 +1036,27 @@ class SchedulePreviewDialog(QDialog):
     
     def export_to_excel(self):
         try:
-            df = pd.DataFrame(self.schedule_data)
-            df.to_excel("schedule_with_senior_editors.xlsx", index=False)
-            QMessageBox.information(self, "Success", "Excel schedule has been successfully generated!")
-            self.accept()
+            from PySide6.QtWidgets import QFileDialog
+            
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Schedule to Excel",
+                "schedule.xlsx",  # Default filename
+                "Excel Files (*.xlsx)"
+            )
+            
+            if file_path:  # Only proceed if user didn't cancel
+                # Add .xlsx extension if not already present
+                if not file_path.endswith('.xlsx'):
+                    file_path += '.xlsx'
+                    
+                df = pd.DataFrame(self.schedule_data)
+                df.to_excel(file_path, index=False)
+                QMessageBox.information(self, "Success", f"Excel schedule has been successfully generated at {file_path}!")
+                self.accept()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to export schedule: {str(e)}")
+
 
 class LeaveDialog(QDialog):
     def __init__(self, parent=None):

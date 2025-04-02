@@ -45,57 +45,55 @@
         "name": "Waiyee",
         "role": "economics",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Cindy",
         "role": "economics",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Ivy",
         "role": "Entertainment",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Aasta",
         "role": "Entertainment",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Carol",
         "role": "Entertainment",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Jackie",
         "role": "KoreanEntertainment",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Tiffany",
         "role": "Plastic",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "10",
+        "end_time": "19"
     },
     {
         "name": "Daisy",
         "role": "SeniorEditor",
-        "additional_roles": [
-            "\u535a\u5ba2"
-        ],
+        "additional_roles": [],
         "start_time": "13",
         "end_time": "22"
     },
@@ -103,21 +101,21 @@
         "name": "Tak",
         "role": "SeniorEditor",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "13",
+        "end_time": "22"
     },
     {
         "name": "Caroline",
         "role": "Plastic",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "15",
+        "end_time": "24"
     },
     {
         "name": "CandyC",
         "role": "\u81c9\u66f8",
         "additional_roles": [],
-        "start_time": null,
-        "end_time": null
+        "start_time": "8",
+        "end_time": "17"
     }
 ]
