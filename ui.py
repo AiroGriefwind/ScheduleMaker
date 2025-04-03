@@ -13,8 +13,11 @@ from scheduling_logic import (EMPLOYEES, Freelancer,
                                generate_schedule, import_from_excel, 
                                edit_employee, load_employees, ROLE_RULES, add_employee, delete_employee,sync_availability,
                               export_availability_to_excel, clear_availability)
-from datetime import datetime, timedelta # Import for Calendar UI
+# Import for Calendar UI
+from datetime import datetime, timedelta 
 
+# Import for logging
+from logger_utils import setup_logging, log_error, log_info, create_data_package  
 
 # Import for localization
 # after updating the .ts file, run this in console to generate the .qm file
@@ -41,6 +44,11 @@ compile_ts_to_qm("zh_TW.ts", "zh_TW.qm")
 class AvailabilityEditor(QMainWindow):
     def __init__(self, start_date=datetime(2025, 3, 17)):
         super().__init__()
+
+        # Initialize logging first thing
+        self.log_file = setup_logging()
+        log_info("Application started")
+
         self.start_date = start_date
         self.employees = load_employees()  # Load employees from JSON
         self.employee_names = [emp.name for emp in self.employees if isinstance(emp, Freelancer)]
@@ -149,6 +157,11 @@ class AvailabilityEditor(QMainWindow):
         add_role_btn = QPushButton(self.tr("Add Role"))
         add_role_btn.clicked.connect(self.add_new_role)
 
+        data_package_btn = QPushButton(self.tr("Create Data Package"))
+        data_package_btn.clicked.connect(self.create_debug_package)
+        
+        
+
         button_layout.addWidget(add_role_btn)
         button_layout.addWidget(save_btn)
         button_layout.addWidget(generate_btn)
@@ -158,6 +171,7 @@ class AvailabilityEditor(QMainWindow):
         button_layout.addWidget(clear_btn)
         button_layout.addWidget(validate_btn)
         button_layout.addWidget(add_btn)
+        button_layout.addWidget(data_package_btn)
 
         layout.addLayout(button_layout)
 
@@ -225,6 +239,7 @@ class AvailabilityEditor(QMainWindow):
 
     def save_new_role(self, dialog, role_name, rule_type, default_shift, weekday_shifts, weekend_shifts):
         if not role_name:
+            log_error("Role name cannot be empty")
             QMessageBox.warning(self, "Error", "Role name cannot be empty")
             return
         
@@ -1025,6 +1040,32 @@ class AvailabilityEditor(QMainWindow):
             self.update_calendar()  # Refresh calendar view
             
             QMessageBox.information(self, "Success", f"Employee {name} deleted successfully.")
+    
+    def create_debug_package(self):
+        try:
+            log_info("Creating data package requested by user")
+            package_path = create_data_package()
+            
+            if package_path:
+                QMessageBox.information(
+                    self, 
+                    "Data Package Created", 
+                    f"Data package has been created at: {package_path}\n\n"
+                    "Please send this file to the developer for debugging."
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    "Failed to create data package. Please check the logs."
+                )
+        except Exception as e:
+            log_error("Failed to create data package", e)
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"An unexpected error occurred: {str(e)}"
+            )
 
 
 class SchedulePreviewDialog(QDialog):
@@ -1096,6 +1137,8 @@ class SchedulePreviewDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Failed to export schedule: {str(e)}")
 
 
+
+
 class LeaveDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1113,25 +1156,38 @@ class LeaveDialog(QDialog):
 
     def get_leave_type(self):
         return self.leave_type_combo.currentText()
+    
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
+    try:
+        app = QApplication(sys.argv)
+        
+        # Create and install translator
+        translator = QTranslator()
+        if not translator.load("zh_TW.ts"):
+            if not translator.load("zh_TW.qm"):
+                print("Failed to load translation file")
+        app.installTranslator(translator)
+        
+        # Initialize logging before creating the main window
+        from logger_utils import setup_logging, log_info, log_error
+        log_file = setup_logging()
+        log_info("Application started")
+        
+        window = AvailabilityEditor()
+        window.show()
+        sys.exit(app.exec())
+    except Exception as e:
+        # This will catch exceptions during startup
+        from logger_utils import log_error
+        log_error("Fatal error during application startup", e)
+        
+        # Show error message to user
+        if 'app' in locals():
+            QMessageBox.critical(None, "Fatal Error", 
+                                f"A fatal error occurred during startup: {str(e)}\n\n"
+                                f"Please check the log file at: {log_file}")
 
-    # Create translator
-    translator = QTranslator()
-    
-    # Try both .ts and .qm files (in case one works)
-    if not translator.load("zh_TW.ts"):
-        # If .ts fails, try .qm
-        if not translator.load("zh_TW.qm"):
-            print("Failed to load translation file")
-    
-    # Install translator regardless (it will be a no-op if loading failed)
-    app.installTranslator(translator)
-
-    window = AvailabilityEditor()
-    window.show()
-    sys.exit(app.exec())
 
 
