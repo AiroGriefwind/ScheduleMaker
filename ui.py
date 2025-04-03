@@ -15,6 +15,29 @@ from scheduling_logic import (EMPLOYEES, Freelancer,
                               export_availability_to_excel, clear_availability)
 from datetime import datetime, timedelta # Import for Calendar UI
 
+
+# Import for localization
+# after updating the .ts file, run this in console to generate the .qm file
+#& "C:/Users/wangz/AppData/Local/Programs/Python/Python313/Lib/site-packages/PySide6/lrelease.exe" zh_TW.ts
+from PySide6.QtCore import QTranslator, QFile, QIODevice
+from PySide6.QtXml import QDomDocument
+
+def compile_ts_to_qm(ts_file, qm_file):
+    """Simple function to convert .ts file content to .qm format"""
+    try:
+        # This is a simplified version - in practice, use proper tools
+        translator = QTranslator()
+        if translator.load(ts_file):
+            return translator.save(qm_file)
+        return False
+    except Exception as e:
+        print(f"Error compiling translation: {e}")
+        return False
+
+# Try to compile the .ts file
+compile_ts_to_qm("zh_TW.ts", "zh_TW.qm")
+
+
 class AvailabilityEditor(QMainWindow):
     def __init__(self, start_date=datetime(2025, 3, 17)):
         super().__init__()
@@ -30,7 +53,7 @@ class AvailabilityEditor(QMainWindow):
         self.update_calendar()
 
     def init_ui(self):
-        self.setWindowTitle("Employee Availability Editor")
+        self.setWindowTitle(self.tr("Employee Availability Editor"))
         self.setGeometry(100, 100, 1000, 600)
 
         main_widget = QWidget()
@@ -49,7 +72,7 @@ class AvailabilityEditor(QMainWindow):
         self.role_combo = QComboBox()
         self.role_combo.addItems(["All"] + list(ROLE_RULES.keys()))
         self.role_combo.currentTextChanged.connect(self.role_changed)
-        control_layout.addWidget(QLabel("Select Role:"))
+        control_layout.addWidget(QLabel(self.tr("Select Role:")))
         control_layout.addWidget(self.role_combo)
 
         # Create a scroll area for employee list
@@ -69,14 +92,14 @@ class AvailabilityEditor(QMainWindow):
         employee_scroll.setWidget(self.employee_list)
         
         # Add label and scroll area to control layout
-        control_layout.addWidget(QLabel("Select Employee:"))
+        control_layout.addWidget(QLabel(self.tr("Select Employee:")))
         control_layout.addWidget(employee_scroll)
 
         layout.addLayout(control_layout)
 
         # Calendar container modifications
         calendar_container = QVBoxLayout()
-        self.selected_employee_label = QLabel(f"Currently Selected: {self.current_employee_name}")
+        self.selected_employee_label = QLabel(self.tr("Currently Selected: ") + self.current_employee_name)
         self.selected_employee_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         calendar_container.addWidget(self.selected_employee_label)
         
@@ -99,35 +122,34 @@ class AvailabilityEditor(QMainWindow):
         # Button layout for actions
         button_layout = QHBoxLayout()
         
-        save_btn = QPushButton("保存時間")
+        save_btn = QPushButton(self.tr("Save Availability"))
         save_btn.clicked.connect(self.save_data)
         
-        generate_btn = QPushButton("導出至Excel")
+        generate_btn = QPushButton(self.tr("Export schedule to Excel"))
         generate_btn.clicked.connect(self.generate_schedule)
         
-        import_btn = QPushButton("從Excel導入")
+        import_btn = QPushButton(self.tr("Import availability from Excel"))
         import_btn.clicked.connect(self.import_from_excel) 
-
         
-        export_btn = QPushButton("導出時間表至Excel")
+        export_btn = QPushButton(self.tr("Export availability to Excel"))
         export_btn.clicked.connect(self.export_availability_to_excel)
 
-        clear_btn = QPushButton("Clear Availability")
+        clear_btn = QPushButton(self.tr("Clear Availability"))
         clear_btn.clicked.connect(self.clear_availability)
 
-        validate_btn = QPushButton("Validate Schedule")
+        validate_btn = QPushButton(self.tr("Validate Schedule"))
         validate_btn.clicked.connect(self.validate_schedule)
 
-        add_btn = QPushButton("Add Employee")
+        add_btn = QPushButton(self.tr("Add Employee"))
         add_btn.clicked.connect(self.add_new_employee)
 
-        import_form_btn = QPushButton("從Google表單導入")
+        import_form_btn = QPushButton(self.tr("Import from Google Form"))
         import_form_btn.clicked.connect(self.import_from_google_form)
 
-        add_role_btn = QPushButton("Add Role")
+        add_role_btn = QPushButton(self.tr("Add Role"))
         add_role_btn.clicked.connect(self.add_new_role)
-        button_layout.addWidget(add_role_btn)
 
+        button_layout.addWidget(add_role_btn)
         button_layout.addWidget(save_btn)
         button_layout.addWidget(generate_btn)
         button_layout.addWidget(import_btn)
@@ -370,7 +392,7 @@ class AvailabilityEditor(QMainWindow):
 
     def save_new_employee(self, dialog, new_name, new_role, additional_roles=None, new_start_time=None, new_end_time=None):
         if new_role != 'Freelancer' and (not new_start_time or not new_end_time):
-            QMessageBox.warning(self, "Error", "非自由工作者必須提供上下班時間")
+            QMessageBox.warning(self, "Error", "Fulltimers must provide start and end times")
             return
         
         # For freelancers, ignore time inputs and use default rules
@@ -390,7 +412,7 @@ class AvailabilityEditor(QMainWindow):
     # Updated ui.py
     def save_new_employee(self, dialog, new_name, new_role, new_start_time=None, new_end_time=None):
         if new_role != 'Freelancer' and (not new_start_time or not new_end_time):
-            QMessageBox.warning(self, "Error", "非自由工作者必須提供上下班時間")
+            QMessageBox.warning(self, "Error", "Fulltimers must provide start and end times")
             return
         
         # For freelancers, ignore time inputs and use default rules
@@ -410,7 +432,7 @@ class AvailabilityEditor(QMainWindow):
         
         
         context_menu = QMenu()
-        leave_action = context_menu.addAction("請假")
+        leave_action = context_menu.addAction("Leave Application")
 
         # Execute the menu at the current cursor position
         action = context_menu.exec_(QCursor.pos())
@@ -852,7 +874,7 @@ class AvailabilityEditor(QMainWindow):
 
     def save_edited_employee(self, dialog, old_name, new_name, new_role, additional_roles=None, new_start_time=None, new_end_time=None):
         if new_role != 'Freelancer' and (not new_start_time or not new_end_time):
-            QMessageBox.warning(self, "Error", "非自由工作者必須提供上下班時間")
+            QMessageBox.warning(self, "Error", "Fulltimers must provide start and end times")
             return
         
         edit_employee(old_name, new_name, new_role, additional_roles, new_start_time, new_end_time)
@@ -865,7 +887,7 @@ class AvailabilityEditor(QMainWindow):
     def save_data(self):
         sync_availability()  # Force synchronization
         save_data(self.availability)
-        QMessageBox.information(self, "Saved", "時間已成功保存!")
+        QMessageBox.information(self, "Saved", "Availability saved!")
     
     def validate_schedule(self):
         warnings = generate_schedule(self.availability, self.start_date, export_to_excel=False)
@@ -1040,9 +1062,9 @@ class SchedulePreviewDialog(QDialog):
         
         # Add buttons
         button_box = QDialogButtonBox()
-        export_btn = QPushButton("導出")
+        export_btn = QPushButton("Export")
         export_btn.clicked.connect(self.export_to_excel)
-        cancel_btn = QPushButton("取消")
+        cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(self.reject)
         
         button_box.addButton(export_btn, QDialogButtonBox.AcceptRole)
@@ -1077,7 +1099,7 @@ class SchedulePreviewDialog(QDialog):
 class LeaveDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("選擇請假類型")
+        self.setWindowTitle("Select Leave Type")
         layout = QVBoxLayout(self)
         
         self.leave_type_combo = QComboBox()
@@ -1095,6 +1117,21 @@ class LeaveDialog(QDialog):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    # Create translator
+    translator = QTranslator()
+    
+    # Try both .ts and .qm files (in case one works)
+    if not translator.load("zh_TW.ts"):
+        # If .ts fails, try .qm
+        if not translator.load("zh_TW.qm"):
+            print("Failed to load translation file")
+    
+    # Install translator regardless (it will be a no-op if loading failed)
+    app.installTranslator(translator)
+
     window = AvailabilityEditor()
     window.show()
     sys.exit(app.exec())
+
+
