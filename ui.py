@@ -68,6 +68,88 @@ class AvailabilityEditor(QMainWindow):
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout(main_widget)
 
+        # Create menu bar at the top instead of bottom
+        menu_bar_layout = QHBoxLayout()
+
+        # FILE MENU
+        file_btn = QPushButton(self.tr("File"))
+        file_menu = QMenu(self)
+        save_action = file_menu.addAction(self.tr("Save Availability"))
+        file_menu.addSeparator()
+        import_excel_action = file_menu.addAction(self.tr("Import from Excel"))
+        import_form_action = file_menu.addAction(self.tr("Import from Google Form"))
+        export_avail_action = file_menu.addAction(self.tr("Export Availability to Excel"))
+        file_menu.addSeparator()
+        clear_action = file_menu.addAction(self.tr("Clear Availability"))
+        file_btn.setMenu(file_menu)
+
+        # EDIT MENU
+        edit_btn = QPushButton(self.tr("Edit"))
+        edit_menu = QMenu(self)
+        add_employee_action = edit_menu.addAction(self.tr("Add Employee"))
+        add_role_action = edit_menu.addAction(self.tr("Add Role"))
+        edit_btn.setMenu(edit_menu)
+
+        # TOOLS MENU
+        tools_btn = QPushButton(self.tr("Tools"))
+        tools_menu = QMenu(self)
+        generate_action = tools_menu.addAction(self.tr("Generate Schedule"))
+        validate_action = tools_menu.addAction(self.tr("Validate Schedule"))
+        tools_btn.setMenu(tools_menu)
+
+        # HELP MENU
+        help_btn = QPushButton(self.tr("Help"))
+        help_menu = QMenu(self)
+        data_package_action = help_menu.addAction(self.tr("Create Data Package"))
+        help_btn.setMenu(help_menu)
+
+        # Add all menu buttons to the layout
+        menu_bar_layout.addWidget(file_btn)
+        menu_bar_layout.addWidget(edit_btn)
+        menu_bar_layout.addWidget(tools_btn)
+        menu_bar_layout.addWidget(help_btn)
+        menu_bar_layout.addStretch()  # Push buttons to the left
+
+        # Connect all actions to their respective functions
+        save_action.triggered.connect(self.save_data)
+        import_excel_action.triggered.connect(self.import_from_excel)
+        import_form_action.triggered.connect(self.import_from_google_form)
+        export_avail_action.triggered.connect(self.export_availability_to_excel)
+        clear_action.triggered.connect(self.clear_availability)
+        add_employee_action.triggered.connect(self.add_new_employee)
+        add_role_action.triggered.connect(self.add_new_role)
+        generate_action.triggered.connect(self.generate_schedule)
+        validate_action.triggered.connect(self.validate_schedule)
+        data_package_action.triggered.connect(self.create_debug_package)
+
+        # Style the menu buttons to look more like Google Docs
+        menu_button_style = """
+        QPushButton {
+            background-color: transparent;
+            border: none;
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 14px;
+        }
+        QPushButton:hover {
+            background-color: #e8e8e8;
+        }
+        QPushButton:pressed {
+            background-color: #d0d0d0;
+        }
+        QPushButton::menu-indicator {
+            width: 0px;
+        }
+        """
+
+        file_btn.setStyleSheet(menu_button_style)
+        edit_btn.setStyleSheet(menu_button_style)
+        tools_btn.setStyleSheet(menu_button_style)
+        help_btn.setStyleSheet(menu_button_style)
+
+        # Add the menu bar to the main layout
+        layout.addLayout(menu_bar_layout)
+
         button_layout = QHBoxLayout()# Add button layout for 從google表單導入
 
         # Control layout for dropdowns and buttons
@@ -127,53 +209,27 @@ class AvailabilityEditor(QMainWindow):
         # Add calendar container to main layout
         layout.addLayout(calendar_container)
 
-        # Button layout for actions
-        button_layout = QHBoxLayout()
-        
-        save_btn = QPushButton(self.tr("Save Availability"))
-        save_btn.clicked.connect(self.save_data)
-        
-        generate_btn = QPushButton(self.tr("Export schedule to Excel"))
-        generate_btn.clicked.connect(self.generate_schedule)
-        
-        import_btn = QPushButton(self.tr("Import availability from Excel"))
-        import_btn.clicked.connect(self.import_from_excel) 
-        
-        export_btn = QPushButton(self.tr("Export availability to Excel"))
-        export_btn.clicked.connect(self.export_availability_to_excel)
+        def setup_menu_styles(self):
+            # Apply styles to all dropdown menus
+            menu_style = """
+            QMenu {
+                background-color: white;
+                border: 1px solid #c0c0c0;
+                padding: 5px 0px;
+            }
+            QMenu::item {
+                padding: 6px 25px 6px 20px;
+                border: 1px solid transparent;
+            }
+            QMenu::item:selected {
+                background-color: #e8e8e8;
+            }
+            """
+            
+            # Apply the style to all menus
+            for menu in [file_menu, edit_menu, tools_menu, help_menu]:
+                menu.setStyleSheet(menu_style)
 
-        clear_btn = QPushButton(self.tr("Clear Availability"))
-        clear_btn.clicked.connect(self.clear_availability)
-
-        validate_btn = QPushButton(self.tr("Validate Schedule"))
-        validate_btn.clicked.connect(self.validate_schedule)
-
-        add_btn = QPushButton(self.tr("Add Employee"))
-        add_btn.clicked.connect(self.add_new_employee)
-
-        import_form_btn = QPushButton(self.tr("Import from Google Form"))
-        import_form_btn.clicked.connect(self.import_from_google_form)
-
-        add_role_btn = QPushButton(self.tr("Add Role"))
-        add_role_btn.clicked.connect(self.add_new_role)
-
-        data_package_btn = QPushButton(self.tr("Create Data Package"))
-        data_package_btn.clicked.connect(self.create_debug_package)
-        
-        
-
-        button_layout.addWidget(add_role_btn)
-        button_layout.addWidget(save_btn)
-        button_layout.addWidget(generate_btn)
-        button_layout.addWidget(import_btn)
-        button_layout.addWidget(import_form_btn)  # Add the button for Google Form import
-        button_layout.addWidget(export_btn)
-        button_layout.addWidget(clear_btn)
-        button_layout.addWidget(validate_btn)
-        button_layout.addWidget(add_btn)
-        button_layout.addWidget(data_package_btn)
-
-        layout.addLayout(button_layout)
 
     def add_new_role(self):
         dialog = QDialog(self)

@@ -6,7 +6,7 @@
     <message>
         <location filename="ui.py" line="35"/>
         <source>Employee Availability Editor</source>
-        <translation>員工可用性編輯器</translation>
+        <translation>自動編更</translation>
     </message>
     <message>
         <location filename="ui.py" line="54"/>
