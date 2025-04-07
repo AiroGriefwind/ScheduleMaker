@@ -1,0 +1,30 @@
+2025-04-07 11:32:11,583 - INFO - Logging system initialized
+2025-04-07 11:32:11,583 - INFO - Application started
+2025-04-07 11:32:11,583 - INFO - Logging system initialized
+2025-04-07 11:32:11,583 - INFO - Application started
+2025-04-07 11:32:23,038 - CRITICAL - Unhandled exception: Traceback (most recent call last):
+  File "D:\workFiles\¾Ž¸ü\ui.py", line 452, in <lambda>
+    save_btn.clicked.connect(lambda: self.save_new_employee(
+                                     ~~~~~~~~~~~~~~~~~~~~~~^
+        dialog,
+        ^^^^^^^
+    ...<4 lines>...
+        end_time_input.text()
+        ^^^^^^^^^^^^^^^^^^^^^
+    ))
+    ^
+TypeError: AvailabilityEditor.save_new_employee() takes from 4 to 6 positional arguments but 7 were given
+
+2025-04-07 11:32:23,067 - CRITICAL - Unhandled exception: Traceback (most recent call last):
+  File "D:\workFiles\¾Ž¸ü\ui.py", line 452, in <lambda>
+    save_btn.clicked.connect(lambda: self.save_new_employee(
+                                     ~~~~~~~~~~~~~~~~~~~~~~^
+        dialog,
+        ^^^^^^^
+    ...<4 lines>...
+        end_time_input.text()
+        ^^^^^^^^^^^^^^^^^^^^^
+    ))
+    ^
+TypeError: AvailabilityEditor.save_new_employee() takes from 4 to 6 positional arguments but 7 were given
+

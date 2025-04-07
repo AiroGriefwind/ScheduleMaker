@@ -117,5 +117,12 @@
         "additional_roles": [],
         "start_time": "8",
         "end_time": "17"
+    },
+    {
+        "name": "Caper",
+        "role": "Freelancer",
+        "additional_roles": [],
+        "start_time": null,
+        "end_time": null
     }
 ]

@@ -71,17 +71,17 @@ class AvailabilityEditor(QMainWindow):
         # Create menu bar at the top instead of bottom
         menu_bar_layout = QHBoxLayout()
 
-        # FILE MENU
-        file_btn = QPushButton(self.tr("File"))
-        file_menu = QMenu(self)
-        save_action = file_menu.addAction(self.tr("Save Availability"))
-        file_menu.addSeparator()
-        import_excel_action = file_menu.addAction(self.tr("Import from Excel"))
-        import_form_action = file_menu.addAction(self.tr("Import from Google Form"))
-        export_avail_action = file_menu.addAction(self.tr("Export Availability to Excel"))
-        file_menu.addSeparator()
-        clear_action = file_menu.addAction(self.tr("Clear Availability"))
-        file_btn.setMenu(file_menu)
+        # Availability MENU
+        availability_btn = QPushButton(self.tr("Availability"))
+        availability_menu = QMenu(self)
+        save_action = availability_menu.addAction(self.tr("Save Availability"))
+        availability_menu.addSeparator()
+        import_excel_action = availability_menu.addAction(self.tr("Import from Excel"))
+        import_form_action = availability_menu.addAction(self.tr("Import from Google Form"))
+        export_avail_action = availability_menu.addAction(self.tr("Export Availability to Excel"))
+        availability_menu.addSeparator()
+        clear_action = availability_menu.addAction(self.tr("Clear Availability"))
+        availability_btn.setMenu(availability_menu)
 
         # EDIT MENU
         edit_btn = QPushButton(self.tr("Edit"))
@@ -104,7 +104,7 @@ class AvailabilityEditor(QMainWindow):
         help_btn.setMenu(help_menu)
 
         # Add all menu buttons to the layout
-        menu_bar_layout.addWidget(file_btn)
+        menu_bar_layout.addWidget(availability_btn)
         menu_bar_layout.addWidget(edit_btn)
         menu_bar_layout.addWidget(tools_btn)
         menu_bar_layout.addWidget(help_btn)
@@ -142,7 +142,7 @@ class AvailabilityEditor(QMainWindow):
         }
         """
 
-        file_btn.setStyleSheet(menu_button_style)
+        availability_btn.setStyleSheet(menu_button_style)
         edit_btn.setStyleSheet(menu_button_style)
         tools_btn.setStyleSheet(menu_button_style)
         help_btn.setStyleSheet(menu_button_style)
@@ -227,7 +227,7 @@ class AvailabilityEditor(QMainWindow):
             """
             
             # Apply the style to all menus
-            for menu in [file_menu, edit_menu, tools_menu, help_menu]:
+            for menu in [availability_menu, edit_menu, tools_menu, help_menu]:
                 menu.setStyleSheet(menu_style)
 
 
@@ -479,25 +479,6 @@ class AvailabilityEditor(QMainWindow):
         self.update_calendar()
         dialog.accept()
 
-
-    # Updated ui.py
-    def save_new_employee(self, dialog, new_name, new_role, new_start_time=None, new_end_time=None):
-        if new_role != 'Freelancer' and (not new_start_time or not new_end_time):
-            QMessageBox.warning(self, "Error", "Fulltimers must provide start and end times")
-            return
-        
-        # For freelancers, ignore time inputs and use default rules
-        if new_role == 'Freelancer':
-            add_employee(new_name, new_role)
-        else:
-            add_employee(new_name, new_role, new_start_time, new_end_time)
-        
-        # Refresh data and UI
-        self.employees = load_employees()
-        self.availability = load_data()
-        self.update_employee_list(self.role_combo.currentText())
-        self.update_calendar()
-        dialog.accept()
 
     def show_shift_context_menu(self, pos, date_str, shift):
         
