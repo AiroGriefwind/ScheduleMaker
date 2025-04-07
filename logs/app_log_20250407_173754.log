@@ -1,0 +1,8 @@
+2025-04-07 17:37:54,107 - INFO - Logging system initialized
+2025-04-07 17:37:54,107 - INFO - Application started
+2025-04-07 17:37:54,107 - INFO - Logging system initialized
+2025-04-07 17:37:54,107 - INFO - Application started
+2025-04-07 17:37:55,896 - INFO - Checking for updates...
+2025-04-07 17:37:56,308 - ERROR - Error checking for updates: 404 Client Error: Not Found for url: https://api.github.com/repos/your-github-username/your-repo-name/releases/latest
+2025-04-07 17:38:06,349 - INFO - Checking for updates...
+2025-04-07 17:38:06,504 - ERROR - Error checking for updates: 404 Client Error: Not Found for url: https://api.github.com/repos/your-github-username/your-repo-name/releases/latest

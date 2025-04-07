@@ -25,6 +25,10 @@ from logger_utils import setup_logging, log_error, log_info, create_data_package
 from PySide6.QtCore import QTranslator, QFile, QIODevice
 from PySide6.QtXml import QDomDocument
 
+# Import for updater
+from updater import Updater
+from PySide6.QtWidgets import QMessageBox, QProgressDialog
+
 def compile_ts_to_qm(ts_file, qm_file):
     """Simple function to convert .ts file content to .qm format"""
     try:
@@ -100,8 +104,11 @@ class AvailabilityEditor(QMainWindow):
         # HELP MENU
         help_btn = QPushButton(self.tr("Help"))
         help_menu = QMenu(self)
+        check_updates_action = help_menu.addAction(self.tr("Check for Updates"))
+        help_menu.addSeparator()  # Add a separator before the next item
         data_package_action = help_menu.addAction(self.tr("Create Data Package"))
         help_btn.setMenu(help_menu)
+        
 
         # Add all menu buttons to the layout
         menu_bar_layout.addWidget(availability_btn)
@@ -121,6 +128,7 @@ class AvailabilityEditor(QMainWindow):
         generate_action.triggered.connect(self.generate_schedule)
         validate_action.triggered.connect(self.validate_schedule)
         data_package_action.triggered.connect(self.create_debug_package)
+        check_updates_action.triggered.connect(self.check_for_updates)
 
         # Style the menu buttons to look more like Google Docs
         menu_button_style = """
@@ -230,6 +238,89 @@ class AvailabilityEditor(QMainWindow):
             for menu in [availability_menu, edit_menu, tools_menu, help_menu]:
                 menu.setStyleSheet(menu_style)
 
+    def check_for_updates(self):
+        """Check for application updates and prompt user to install if available"""
+        try:
+            # Create a progress dialog
+            progress = QProgressDialog("Checking for updates...", "Cancel", 0, 0, self)
+            progress.setWindowTitle("Update Check")
+            progress.setModal(True)
+            progress.show()
+            
+            # Create updater instance
+            updater = Updater()
+            
+            # Check for updates
+            update_info = updater.check_for_updates()
+            progress.close()
+            
+            if update_info:
+                # Show update available dialog
+                reply = QMessageBox.question(
+                    self,
+                    "Update Available",
+                    f"A new version ({update_info['version']}) is available. Would you like to update now?\n\n"
+                    f"Release Notes:\n{update_info['release_notes']}",
+                    QMessageBox.Yes | QMessageBox.No
+                )
+                
+                if reply == QMessageBox.Yes:
+                    # Show download progress
+                    progress = QProgressDialog("Downloading update...", "Cancel", 0, 0, self)
+                    progress.setWindowTitle("Downloading")
+                    progress.setModal(True)
+                    progress.show()
+                    
+                    # Download the update
+                    update_zip = updater.download_update(update_info['download_url'])
+                    progress.close()
+                    
+                    if update_zip:
+                        # Confirm installation
+                        reply = QMessageBox.question(
+                            self,
+                            "Install Update",
+                            "The update has been downloaded. The application will close and restart after installation. Continue?",
+                            QMessageBox.Yes | QMessageBox.No
+                        )
+                        
+                        if reply == QMessageBox.Yes:
+                            # Apply the update
+                            if updater.apply_update(update_zip):
+                                QMessageBox.information(
+                                    self,
+                                    "Update Successful",
+                                    "The update has been installed successfully. The application will now restart."
+                                )
+                                
+                                # Restart the application
+                                python = sys.executable
+                                os.execl(python, python, *sys.argv)
+                            else:
+                                QMessageBox.critical(
+                                    self,
+                                    "Update Failed",
+                                    "Failed to apply the update. The application will continue with the current version."
+                                )
+                    else:
+                        QMessageBox.critical(
+                            self,
+                            "Download Failed",
+                            "Failed to download the update. Please try again later."
+                        )
+            else:
+                QMessageBox.information(
+                    self,
+                    "No Updates",
+                    "You are using the latest version of the application."
+                )
+        except Exception as e:
+            log_error("Failed to check for updates", e)
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"An error occurred while checking for updates: {str(e)}"
+            )
 
     def add_new_role(self):
         dialog = QDialog(self)
