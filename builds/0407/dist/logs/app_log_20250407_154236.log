@@ -1,0 +1,11 @@
+2025-04-07 15:42:36,928 - INFO - Logging system initialized
+2025-04-07 15:42:36,928 - INFO - Application started
+2025-04-07 15:42:36,928 - INFO - Logging system initialized
+2025-04-07 15:42:36,928 - INFO - Application started
+2025-04-07 15:42:36,928 - ERROR - Fatal error during application startup: 'gbk' codec can't decode byte 0xaa in position 257: illegal multibyte sequence
+Traceback (most recent call last):
+  File "ui.py", line 1215, in <module>
+  File "ui.py", line 57, in __init__
+  File "scheduling_logic.py", line 117, in load_data
+  File "json\__init__.py", line 293, in load
+UnicodeDecodeError: 'gbk' codec can't decode byte 0xaa in position 257: illegal multibyte sequence

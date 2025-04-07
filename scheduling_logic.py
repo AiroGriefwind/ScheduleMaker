@@ -75,7 +75,7 @@ class KoreanEntertainment(Employee):
 
 def init_employees():
     try:
-        with open('employees.json', 'r') as f:
+        with open('employees.json', 'r', encoding='utf-8') as f:
             data = json.load(f)
             employees = []
             for emp in data:
@@ -113,7 +113,7 @@ def save_data(data):
 
 def load_data():
     try:
-        with open('availability.json', 'r') as f:
+        with open('availability.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
         return None
@@ -674,7 +674,7 @@ def load_role_rules():
     """Load ROLE_RULES from JSON file if it exists"""
     global ROLE_RULES
     try:
-        with open('role_rules.json', 'r') as f:
+        with open('role_rules.json', 'r', encoding='utf-8') as f:
             ROLE_RULES = json.load(f)
     except FileNotFoundError:
         # If file doesn't exist, use the default ROLE_RULES
