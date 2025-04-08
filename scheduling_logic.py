@@ -123,36 +123,36 @@ EMPLOYEES = init_employees()
 FREELANCERS = [employee.name for employee in EMPLOYEES if isinstance(employee, Freelancer)]
 
 # New centralized role-based rules storage
-ROLE_RULES = {
-    "Freelancer": {
-        "rule_type": "shift_based",
-        "shifts": {
-            "weekday": {"early": "7-16", "day": "0930-1830", "night": "15-24"},
-            "weekend": {"early": "7-16", "day": "10-19", "night": "15-24"}
-        },
-        "requirements": {
-            "weekday": {"early": 1, "day": 1, "night": 2},
-            "weekend": {"early": 1, "day": 1, "night": 1}
-        }
-    },
-    "SeniorEditor": {
-        "rule_type": "fixed_time",
-        "default_shift": "13-22",
-    },
-    # Other roles can be added here with their specific rules
-    "economics": {
-        "rule_type": "fixed_time",
-        "default_shift": "10-19",
-    },
-    "Entertainment": {
-        "rule_type": "fixed_time",
-        "default_shift": "10-19",
-    },
-    "KoreanEntertainment": {
-        "rule_type": "fixed_time",
-        "default_shift": "10-19",
-    }
-}
+# ROLE_RULES = {
+#     "Freelancer": {
+#         "rule_type": "shift_based",
+#         "shifts": {
+#             "weekday": {"early": "7-16", "day": "0930-1830", "night": "15-24"},
+#             "weekend": {"early": "7-16", "day": "10-19", "night": "15-24"}
+#         },
+#         "requirements": {
+#             "weekday": {"early": 1, "day": 1, "night": 2},
+#             "weekend": {"early": 1, "day": 1, "night": 1}
+#         }
+#     },
+#     "SeniorEditor": {
+#         "rule_type": "fixed_time",
+#         "default_shift": "13-22",
+#     },
+#     # Other roles can be added here with their specific rules
+#     "economics": {
+#         "rule_type": "fixed_time",
+#         "default_shift": "10-19",
+#     },
+#     "Entertainment": {
+#         "rule_type": "fixed_time",
+#         "default_shift": "10-19",
+#     },
+#     "KoreanEntertainment": {
+#         "rule_type": "fixed_time",
+#         "default_shift": "10-19",
+#     }
+# }
 
 def load_employees():
     try:
@@ -307,17 +307,29 @@ def get_last_generated_schedule():
 def generate_schedule(availability, start_date, export_to_excel=True, file_path=None):
     global _last_generated_schedule
     warnings = []
-    schedule = []
     
-    # Generate freelancer schedule
-    freelancer_warnings = generate_freelancer_schedule(availability, start_date, schedule)
+    # Get all dates from availability
+    date_strings = sorted(availability.keys())
+    dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
+    
+    # Create a dictionary to organize schedule entries by date
+    schedule_by_date = {}
+    for date in dates:
+        date_str = date.strftime("%d/%m/%Y")
+        schedule_by_date[date_str] = {"Date": date_str}
+    
+    # Generate schedules for fulltime employees first
+    for role_type in ROLE_RULES:
+        if role_type != "Freelancer":  # Process all non-freelancer roles
+            role_warnings = generate_fulltime_schedule_for_integrated(availability, dates, schedule_by_date, role_type)
+            warnings.extend(role_warnings)
+    
+    # Generate freelancer schedule second
+    freelancer_warnings = generate_freelancer_schedule_for_integrated(availability, dates, schedule_by_date)
     warnings.extend(freelancer_warnings)
     
-    # Generate schedules for each role type
-    for role_type in ROLE_RULES:
-        if role_type != "Freelancer":  # Skip freelancers as they're handled separately
-            role_warnings = generate_fulltime_schedule(availability, start_date, schedule, role_type)
-            warnings.extend(role_warnings)
+    # Convert the date-organized dictionary to a flat schedule list
+    schedule = [entry for _, entry in sorted(schedule_by_date.items())]
     
     # Store the generated schedule
     _last_generated_schedule = schedule
@@ -329,18 +341,63 @@ def generate_schedule(availability, start_date, export_to_excel=True, file_path=
     
     return warnings
 
-
-
-def generate_freelancer_schedule(availability, start_date, schedule):
+def generate_fulltime_schedule_for_integrated(availability, dates, schedule_by_date, role_type):
+    """
+    Generates schedules for fulltime employees of a specific role type and integrates them into the schedule_by_date dictionary.
+    """
     warnings = []
-    date_strings = sorted(availability.keys())
-    dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
+    
+    role_rules = ROLE_RULES[role_type]
+    default_shift = role_rules.get("default_shift")
+    
+    employees = [emp.name for emp in EMPLOYEES if emp.employee_type == role_type]
+    
+    for date in dates:
+        date_str = date.strftime("%d/%m/%Y")
+        iso_date_str = date.strftime("%Y-%m-%d")
+        
+        # Assign shifts to employees based on actual availability
+        for name in employees:
+            # Check if the employee has availability data for this date
+            if iso_date_str in availability and name in availability[iso_date_str]:
+                employee_data = availability[iso_date_str][name]
+                
+                # Check if there's any data for this employee on this date
+                if employee_data and len(employee_data) > 0:
+                    # Check for leave types or custom shifts
+                    first_entry = employee_data[0]
+                    leave_types = ["AL", "CL", "PH", "ON", "自由調配", "half off"]
+                    
+                    if first_entry in leave_types:
+                        # This is a leave entry
+                        schedule_by_date[date_str][name] = first_entry
+                    elif "-" in first_entry:
+                        # This is a custom shift time
+                        schedule_by_date[date_str][name] = first_entry
+                    else:
+                        # Unknown format, use default
+                        schedule_by_date[date_str][name] = default_shift
+                else:
+                    # Empty array means unavailable
+                    schedule_by_date[date_str][name] = "off"
+            else:
+                # If no data exists, use default shift
+                schedule_by_date[date_str][name] = default_shift
+    
+    return warnings
+
+def generate_freelancer_schedule_for_integrated(availability, dates, schedule_by_date):
+    """
+    Generates schedules for freelancers and integrates them into the schedule_by_date dictionary.
+    """
+    warnings = []
     
     freelancer_rules = ROLE_RULES["Freelancer"]
     shift_counts = {name: {"early": 0, "day": 0, "night": 0} for name in FREELANCERS}
     
     for date in dates:
-        date_str = date.strftime("%Y-%m-%d")
+        date_str = date.strftime("%d/%m/%Y")
+        iso_date_str = date.strftime("%Y-%m-%d")
         day_type = 'weekend' if date.weekday() >= 5 else 'weekday'
         assigned_shifts = {name: 'off' for name in FREELANCERS}
         
@@ -355,8 +412,11 @@ def generate_freelancer_schedule(availability, start_date, schedule):
             # Find available freelancers for this shift
             available_freelancers = []
             for name in FREELANCERS:
-                if name in availability[date_str] and shift_time in availability[date_str][name] and assigned_shifts[name] == 'off':
-                    weight = (1 / (len(availability[date_str][name]) + 1)) + (1 / (shift_counts[name][shift_name] + 1))
+                if (iso_date_str in availability and 
+                    name in availability[iso_date_str] and 
+                    shift_time in availability[iso_date_str][name] and 
+                    assigned_shifts[name] == 'off'):
+                    weight = (1 / (len(availability[iso_date_str][name]) + 1)) + (1 / (shift_counts[name][shift_name] + 1))
                     available_freelancers.append((name, weight))
             
             # Sort freelancers by weight (higher weight = higher priority)
@@ -376,72 +436,9 @@ def generate_freelancer_schedule(availability, start_date, schedule):
                     f"Required: {required_count}, Assigned: {assigned_count}."
                 )
         
-        # Add this day's schedule to the overall schedule
-        schedule_entry = {"Date": date.strftime("%d/%m/%Y")}
-        schedule_entry.update(assigned_shifts)
-        schedule.append(schedule_entry)
-    
-    return warnings
-
-
-
-def generate_fulltime_schedule(availability, start_date, schedule, role_type):
-    """
-    Generates schedules for fulltime employees of a specific role type.
-    Handles custom shift times and leave types from the actual JSON structure.
-    """
-    warnings = []
-    date_strings = sorted(availability.keys())
-    dates = [datetime.strptime(d, "%Y-%m-%d") for d in date_strings]
-    
-    role_rules = ROLE_RULES[role_type]
-    default_shift = role_rules["default_shift"]
-    
-    employees = [emp.name for emp in EMPLOYEES if emp.employee_type == role_type]
-    
-    for date in dates:
-        date_str = date.strftime("%d/%m/%Y")
-        iso_date_str = date.strftime("%Y-%m-%d")
-        employee_shifts = {}
-        
-        # Assign shifts to employees based on actual availability
-        for name in employees:
-            # Check if the employee has availability data for this date
-            if iso_date_str in availability and name in availability[iso_date_str]:
-                employee_data = availability[iso_date_str][name]
-                
-                # Check if there's any data for this employee on this date
-                if employee_data and len(employee_data) > 0:
-                    # Check for leave types or custom shifts
-                    first_entry = employee_data[0]
-                    leave_types = ["AL", "CL", "PH", "ON", "自由調配", "half off"]
-                    
-                    if first_entry in leave_types:
-                        # This is a leave entry
-                        employee_shifts[name] = first_entry
-                    elif "-" in first_entry:
-                        # This is a custom shift time
-                        employee_shifts[name] = first_entry
-                    else:
-                        # Unknown format, use default
-                        employee_shifts[name] = default_shift
-                else:
-                    # Empty array means unavailable
-                    employee_shifts[name] = "off"
-            else:
-                # If no data exists, use default shift
-                employee_shifts[name] = default_shift
-        
-        # Find the existing entry in the schedule for this date
-        existing_entry = next((entry for entry in schedule if entry["Date"] == date_str), None)
-        
-        if existing_entry:
-            # Update the existing entry with employee shifts
-            existing_entry.update(employee_shifts)
-        else:
-            # Create a new entry if no existing entry is found
-            schedule_entry = {"Date": date_str, **employee_shifts}
-            schedule.append(schedule_entry)
+        # Add freelancer assignments to the schedule entry for this date
+        for name, shift in assigned_shifts.items():
+            schedule_by_date[date_str][name] = shift
     
     return warnings
 

@@ -646,10 +646,7 @@ class AvailabilityEditor(QMainWindow):
             # Get role color
             role_colors = {
                 "Freelancer": (75, 150, 225),
-                "SeniorEditor": (225, 75, 75),
-                "economics": (75, 225, 75),
-                "Entertainment": (225, 225, 75),
-                "KoreanEntertainment": (225, 75, 225)
+                "Fulltimers": (225, 75, 75),
             }
             color = QColor(*role_colors.get(role, (75, 150, 225)))
 
