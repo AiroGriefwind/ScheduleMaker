@@ -215,8 +215,59 @@ class AvailabilityEditor(QMainWindow):
         # Add scroll area to calendar container
         calendar_container.addWidget(scroll)
         
-        # Add calendar container to main layout
-        layout.addLayout(calendar_container)
+        holidays_label = QLabel()
+        holidays_label.setTextFormat(Qt.TextFormat.RichText)
+        holidays_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        holidays_label.setStyleSheet("""
+            background-color: black;
+            border: 1px solid #c0c0c0;
+            padding: 10px;
+            font-size: 12px;
+        """)
+
+        # 設置公眾假期文本
+        holidays_text = """
+        <h3 style='text-align:center;'>2025年香港公眾假期</h3>
+        <table border='1' cellspacing='0' cellpadding='5' style='border-collapse:collapse; width:100%;'>
+        <tr><td>1月1日</td><td>星期三</td><td>元旦</td></tr>
+        <tr><td>1月29日</td><td>星期三</td><td>農曆新年初一</td></tr>
+        <tr><td>1月30日</td><td>星期四</td><td>農曆新年初二</td></tr>
+        <tr><td>1月31日</td><td>星期五</td><td>農曆新年初三</td></tr>
+        <tr><td>4月4日</td><td>星期五</td><td>清明節</td></tr>
+        <tr><td>4月18日</td><td>星期五</td><td>耶穌受難節</td></tr>
+        <tr><td>4月19日</td><td>星期六</td><td>耶穌受難節翌日</td></tr>
+        <tr><td>4月21日</td><td>星期一</td><td>復活節星期一</td></tr>
+        <tr><td>5月1日</td><td>星期四</td><td>勞動節</td></tr>
+        <tr><td>5月5日</td><td>星期一</td><td>佛誕</td></tr>
+        <tr><td>5月31日</td><td>星期六</td><td>端午節</td></tr>
+        <tr><td>7月1日</td><td>星期二</td><td>香港特別行政區成立紀念日</td></tr>
+        <tr><td>10月1日</td><td>星期三</td><td>國慶日</td></tr>
+        <tr><td>10月7日</td><td>星期二</td><td>中秋節翌日</td></tr>
+        <tr><td>10月29日</td><td>星期三</td><td>重陽節</td></tr>
+        <tr><td>12月25日</td><td>星期四</td><td>聖誕節</td></tr>
+        <tr><td>12月26日</td><td>星期五</td><td>聖誕節後第一個周日</td></tr>
+        </table>
+        """
+        holidays_label.setText(holidays_text)
+
+        # 設置固定寬度，但允許垂直滾動
+        holidays_label.setFixedWidth(300)
+        holidays_label.setMinimumHeight(400)
+        holidays_label.setWordWrap(True)
+
+        # 創建滾動區域
+        holidays_scroll = QScrollArea()
+        holidays_scroll.setWidget(holidays_label)
+        holidays_scroll.setWidgetResizable(True)
+        holidays_scroll.setFixedWidth(320)
+
+        # 創建水平布局來容納日曆和假期顯示
+        horizontal_layout = QHBoxLayout()
+        horizontal_layout.addLayout(calendar_container, 3)  # 日曆佔據更多空間
+        horizontal_layout.addWidget(holidays_scroll, 1)  # 假期顯示框佔據較少空間
+
+        # 將水平布局添加到主布局 (而不是直接添加calendar_container)
+        layout.addLayout(horizontal_layout)
 
         def setup_menu_styles(self):
             # Apply styles to all dropdown menus
