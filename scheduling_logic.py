@@ -1,5 +1,5 @@
 import json
-import pandas as pd
+from pandas import DataFrame, read_excel, isna, notna
 #from collections import deque  
 from datetime import datetime, timedelta
 
@@ -324,7 +324,7 @@ def generate_schedule(availability, start_date, export_to_excel=True, file_path=
     
     # Export schedule to Excel if requested with the provided file path
     if export_to_excel and file_path:
-        df = pd.DataFrame(schedule)
+        df = DataFrame(schedule)
         df.to_excel(file_path, index=False)
     
     return warnings
@@ -454,7 +454,7 @@ def import_from_google_form(file_path):
     Handles both full-time and freelancer data formats.
     """
     try:
-        df = pd.read_excel(file_path)
+        df = read_excel(file_path)
         
         # Initialize availability data structure if not exists
         availability = load_data() or {}
@@ -462,14 +462,14 @@ def import_from_google_form(file_path):
         # Process each response row
         for _, row in df.iterrows():
             # Skip rows without name
-            if pd.isna(row.get('名字')):
+            if isna(row.get('名字')):
                 continue
                 
             employee_name = row['名字']
             employee_type = row.get('請問您是全職還是兼職？')
             
             # Skip if employee type is not specified
-            if pd.isna(employee_type):
+            if isna(employee_type):
                 continue
                 
             # Process columns based on employee type
@@ -508,13 +508,13 @@ def process_fulltime_availability(availability, row, employee_name):
             
             leave_value = row[col]
             
-            if pd.notna(leave_value) and leave_value in ["AL", "CL", "PH", "ON", "自由調配", "half off"]:
+            if notna(leave_value) and leave_value in ["AL", "CL", "PH", "ON", "自由調配", "half off"]:
                 # This is a leave entry
                 availability[iso_date][employee_name] = [leave_value]
             else:
                 # This is a regular shift entry
                 shift_value = row[col]
-                if pd.notna(shift_value) and "-" in shift_value:
+                if notna(shift_value) and "-" in shift_value:
                     # Update employee configuration with the shift from form
                     start_time, end_time = shift_value.split('-')
                     employee.start_time = start_time
@@ -564,7 +564,7 @@ def process_freelancer_availability(availability, row, employee_name):
             shift_value = row[col]
             
             # Skip if no shifts selected
-            if pd.isna(shift_value):
+            if isna(shift_value):
                 continue
                 
             # Process shift selections
@@ -586,7 +586,7 @@ def process_freelancer_availability(availability, row, employee_name):
 
 
 def import_from_excel(file_path):
-    df = pd.read_excel(file_path)
+    df = read_excel(file_path)
     required_columns = {'Date', 'Employee', 'Shift'}
     if not required_columns.issubset(df.columns):
         raise ValueError(f"Excel file must contain columns: {required_columns}")
@@ -626,7 +626,7 @@ def export_availability_to_excel(availability, file_path=None):
             for shift in shifts:
                 data.append({"Date": date, "Employee": employee_name, "Shift": shift})
     
-    df = pd.DataFrame(data)
+    df = DataFrame(data)
     # Use the provided file path or default
     output_path = file_path or "availability_export.xlsx"
     df.to_excel(output_path, index=False, engine='openpyxl')

@@ -1,5 +1,6 @@
+import os
 import sys
-import pandas as pd # Import for SchedulePreviewDialog
+from pandas import DataFrame # Import for SchedulePreviewDialog
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                               QHBoxLayout, QPushButton, QComboBox, QLabel,
                               QMessageBox, QGridLayout, QScrollArea, QDialog, QLineEdit, QMenu,
@@ -1257,7 +1258,7 @@ class SchedulePreviewDialog(QDialog):
                 if not file_path.endswith('.xlsx'):
                     file_path += '.xlsx'
                     
-                df = pd.DataFrame(self.schedule_data)
+                df = DataFrame(self.schedule_data)
                 df.to_excel(file_path, index=False)
                 QMessageBox.information(self, "Success", f"Excel schedule has been successfully generated at {file_path}!")
                 self.accept()

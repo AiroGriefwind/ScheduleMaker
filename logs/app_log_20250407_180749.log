@@ -1,0 +1,10 @@
+2025-04-07 18:07:49,107 - INFO - Logging system initialized
+2025-04-07 18:07:49,107 - INFO - Application started
+2025-04-07 18:07:49,107 - INFO - Logging system initialized
+2025-04-07 18:07:49,107 - INFO - Application started
+2025-04-07 18:07:50,999 - INFO - Checking for updates...
+2025-04-07 18:07:51,418 - INFO - New version available: 0.9.8 (current: 0.9.7)
+2025-04-07 18:07:58,077 - INFO - Downloading update from None
+2025-04-07 18:07:58,079 - ERROR - Error downloading update: Invalid URL 'None': No scheme supplied. Perhaps you meant https://None?
+2025-04-07 18:08:02,120 - INFO - Checking for updates...
+2025-04-07 18:08:02,265 - INFO - New version available: 0.9.8 (current: 0.9.7)
