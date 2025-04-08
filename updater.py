@@ -1,13 +1,13 @@
-import os
-import sys
-import json
-import shutil
-import tempfile
-import logging
-import zipfile
-import requests
+from os import path, makedirs, listdir, remove
+from sys import executable, argv
+from json import loads
+from shutil import copy2
+from tempfile import mkdtemp, gettempdir
+from logging import getLogger
+from zipfile import ZipFile
 from datetime import datetime
-from packaging import version
+from packaging.version import parse as parse_version
+import requests
 
 # GitHub repository information
 GITHUB_OWNER = "AiroGriefwind"
@@ -17,7 +17,7 @@ CURRENT_VERSION = "0.9.8"  # Initial version - this should be updated with each 
 
 class Updater:
     def __init__(self, logger=None):
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or getLogger(__name__)
     
     def check_for_updates(self):
         """Check if a newer version is available on GitHub"""
@@ -32,7 +32,7 @@ class Updater:
             latest_version = latest_release['tag_name'].lstrip('v')
             
             # Compare versions
-            if version.parse(latest_version) > version.parse(CURRENT_VERSION):
+            if parse_version(latest_version) > parse_version(CURRENT_VERSION):
                 self.logger.info(f"New version available: {latest_version} (current: {CURRENT_VERSION})")
                 return {
                     'version': latest_version,
@@ -61,8 +61,8 @@ class Updater:
             self.logger.info(f"Downloading update from {download_url}")
             
             # Create a temporary directory for the download
-            temp_dir = tempfile.mkdtemp()
-            zip_path = os.path.join(temp_dir, "update.zip")
+            temp_dir = mkdtemp()
+            zip_path = path.join(temp_dir, "update.zip")
             
             # Download the file
             response = requests.get(download_url, stream=True)
@@ -87,13 +87,13 @@ class Updater:
             backup_dir = self._create_backup()
             
             # Extract the update zip
-            with zipfile.ZipFile(update_zip, 'r') as zip_ref:
+            with ZipFile(update_zip, 'r') as zip_ref:
                 # Get the current application directory
-                app_dir = os.path.dirname(os.path.abspath(__file__))
+                app_dir = path.dirname(path.abspath(__file__))
                 zip_ref.extractall(app_dir)
             
             # Clean up the temporary file
-            os.remove(update_zip)
+            remove(update_zip)
             
             self.logger.info("Update applied successfully!")
             return True
@@ -106,18 +106,18 @@ class Updater:
     def _create_backup(self):
         """Create a backup of the current application"""
         try:
-            app_dir = os.path.dirname(os.path.abspath(__file__))
-            backup_dir = os.path.join(tempfile.gettempdir(), f"app_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            app_dir = path.dirname(path.abspath(__file__))
+            backup_dir = path.join(gettempdir(), f"app_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
             
             # Create backup directory
-            os.makedirs(backup_dir)
+            makedirs(backup_dir)
             
             # Copy all Python files and JSON data files
-            for filename in os.listdir(app_dir):
+            for filename in listdir(app_dir):
                 if filename.endswith('.py') or filename.endswith('.json'):
-                    src_path = os.path.join(app_dir, filename)
-                    dst_path = os.path.join(backup_dir, filename)
-                    shutil.copy2(src_path, dst_path)
+                    src_path = path.join(app_dir, filename)
+                    dst_path = path.join(backup_dir, filename)
+                    copy2(src_path, dst_path)
             
             self.logger.info(f"Backup created at {backup_dir}")
             return backup_dir
@@ -127,19 +127,19 @@ class Updater:
     
     def _restore_backup(self, backup_dir):
         """Restore the application from backup"""
-        if not backup_dir or not os.path.exists(backup_dir):
+        if not backup_dir or not path.exists(backup_dir):
             self.logger.error("No backup available to restore")
             return False
         
         try:
             self.logger.info(f"Restoring from backup {backup_dir}")
-            app_dir = os.path.dirname(os.path.abspath(__file__))
+            app_dir = path.dirname(path.abspath(__file__))
             
             # Copy all files from backup to app directory
-            for filename in os.listdir(backup_dir):
-                src_path = os.path.join(backup_dir, filename)
-                dst_path = os.path.join(app_dir, filename)
-                shutil.copy2(src_path, dst_path)
+            for filename in listdir(backup_dir):
+                src_path = path.join(backup_dir, filename)
+                dst_path = path.join(app_dir, filename)
+                copy2(src_path, dst_path)
             
             self.logger.info("Restoration complete")
             return True
