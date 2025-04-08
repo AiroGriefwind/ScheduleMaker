@@ -624,18 +624,26 @@ class AvailabilityEditor(QMainWindow):
 
 
     def show_shift_context_menu(self, pos, date_str, shift):
-        
-        
         context_menu = QMenu()
         leave_action = context_menu.addAction("Leave Application")
+        
+        # Add the new option for changing shift time
+        # Get the employee to check if they're a fulltimer
+        current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
+        if current_employee and current_employee.employee_type != "Freelancer":
+            change_shift_action = context_menu.addAction("Change Shift Time for Today")
+        else:
+            change_shift_action = None
 
         # Execute the menu at the current cursor position
         action = context_menu.exec_(QCursor.pos())
         
         if action == leave_action:
             self.show_leave_dialog(date_str, shift)
+        elif action == change_shift_action:
+            self.show_custom_shift_dialog(date_str, shift)
 
-
+    
     def show_leave_dialog(self, date_str, shift):
         dialog = LeaveDialog(self)
         if dialog.exec_() == QDialog.Accepted:
@@ -652,6 +660,65 @@ class AvailabilityEditor(QMainWindow):
             save_data(self.availability)
             self.update_calendar()
 
+    def show_custom_shift_dialog(self, date_str, shift):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Change Shift Time")
+        layout = QVBoxLayout(dialog)
+        
+        # Parse the original shift time to use as default values
+        default_start, default_end = shift.split('-')
+        
+        # Create input fields
+        layout.addWidget(QLabel("Start Time (HH:MM):"))
+        start_time_input = QLineEdit(default_start)
+        layout.addWidget(start_time_input)
+        
+        layout.addWidget(QLabel("End Time (HH:MM):"))
+        end_time_input = QLineEdit(default_end)
+        layout.addWidget(end_time_input)
+        
+        # Add buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(lambda: self.set_custom_shift(dialog, date_str, shift, 
+                                                                start_time_input.text(), 
+                                                                end_time_input.text()))
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        dialog.exec_()
+
+    def set_custom_shift(self, dialog, date_str, original_shift, start_time, end_time):
+        # Validate input
+        if not start_time or not end_time:
+            QMessageBox.warning(self, "Error", "Both start and end times are required")
+            return
+        
+        # Create the custom shift string
+        custom_shift = f"{start_time}-{end_time}"
+        
+        # Update availability data
+        if self.current_employee_name in self.availability[date_str]:
+            current_shifts = self.availability[date_str][self.current_employee_name]
+            
+            # Remove the original shift if it exists
+            if original_shift in current_shifts:
+                current_shifts.remove(original_shift)
+            
+            # Remove any leave types
+            leave_types = ["AL", "CL", "PH", "ON", "自由調配", "half off"]
+            current_shifts = [s for s in current_shifts if s not in leave_types]
+            
+            # Add the custom shift
+            current_shifts.append(custom_shift)
+            
+            # Update the availability
+            self.availability[date_str][self.current_employee_name] = current_shifts
+            
+            # Save and update UI
+            save_data(self.availability)
+            self.update_calendar()
+            
+        dialog.accept()
 
 
     def create_day_widget(self, date_str):
@@ -753,6 +820,35 @@ class AvailabilityEditor(QMainWindow):
                             leaves = [lt for lt in ["AL", "CL", "PH", "ON", "自由調配", "half off"] if lt in recorded_shifts]
                             if leaves:
                                 widget.setText(leaves[0])
+                                widget.setChecked(True)
+                            else:
+                                widget.setChecked(False)
+                                # Restore original shift text if needed
+                                if original_shift and widget.text() != original_shift:
+                                    widget.setText(original_shift)
+            # And modify it to handle custom shifts:
+            if self.current_employee_name in self.availability.get(date_str, {}):
+                recorded_shifts = self.availability[date_str][self.current_employee_name]
+
+                for i in range(day_layout.count()):
+                    widget = day_layout.itemAt(i).widget()
+                    if isinstance(widget, QPushButton) and widget != day_label:  # Skip the date label
+                        current_text = widget.text()
+                        original_shift = widget.property("original_shift")
+
+                        # Handle leave types
+                        leaves = [lt for lt in ["AL", "CL", "PH", "ON", "自由調配", "half off"] if lt in recorded_shifts]
+                        if leaves:
+                            widget.setText(leaves[0])
+                            widget.setChecked(True)
+                        else:
+                            # Check for custom shifts (any shift with a hyphen that's not the original)
+                            custom_shifts = [s for s in recorded_shifts if '-' in s and s != original_shift]
+                            if custom_shifts:
+                                widget.setText(custom_shifts[0])  # Display the custom shift time
+                                widget.setChecked(True)
+                            elif original_shift in recorded_shifts:
+                                widget.setText(original_shift)
                                 widget.setChecked(True)
                             else:
                                 widget.setChecked(False)
@@ -862,6 +958,10 @@ class AvailabilityEditor(QMainWindow):
             # Check if this is a leave type being toggled
             leave_types = ["AL", "CL", "PH", "ON", "自由調配", "half off"]
             
+            # Get the employee to determine if this is a fulltimer
+            current_employee = next((e for e in self.employees if e.name == self.current_employee_name), None)
+            is_fulltimer = current_employee and current_employee.employee_type != "Freelancer"
+            
             if shift in leave_types:
                 # Remove any existing leave types
                 current_shifts = [s for s in current_shifts if s not in leave_types]
@@ -870,9 +970,22 @@ class AvailabilityEditor(QMainWindow):
                 # If the shift is already in current_shifts, remove it
                 if shift in current_shifts:
                     current_shifts.remove(shift)
+                    
+                    # For fulltimers, restore their default shift
+                    if is_fulltimer:
+                        default_shift = f"{current_employee.start_time}-{current_employee.end_time}"
+                        if default_shift != shift:  # Only add if it's different from what was removed
+                            current_shifts.append(default_shift)
                 else:
                     # Remove any existing leave types before adding the new shift
                     current_shifts = [s for s in current_shifts if s not in leave_types]
+                    
+                    # For fulltimers, remove any custom shifts first
+                    if is_fulltimer:
+                        # Remove any shift that's not the default one
+                        default_shift = f"{current_employee.start_time}-{current_employee.end_time}"
+                        current_shifts = [s for s in current_shifts if s not in leave_types and not '-' in s]
+                    
                     current_shifts.append(shift)
             
             # Update the availability for this date and employee
@@ -880,7 +993,6 @@ class AvailabilityEditor(QMainWindow):
             
             save_data(self.availability)
             self.update_calendar()
-
 
 
 
