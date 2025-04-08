@@ -1509,6 +1509,11 @@ class LeaveDialog(QDialog):
 
 if __name__ == "__main__":
     try:
+        # Initialize logging before creating the main window
+        from logger_utils import setup_logging, log_info, log_error
+        log_file = setup_logging()
+        log_info("Application started")
+        
         app = QApplication(sys.argv)
         
         # Create and install translator
@@ -1518,14 +1523,11 @@ if __name__ == "__main__":
                 print("Failed to load translation file")
         app.installTranslator(translator)
         
-        # Initialize logging before creating the main window
-        from logger_utils import setup_logging, log_info, log_error
-        log_file = setup_logging()
-        log_info("Application started")
+        # Import and use the splash screen
+        from splash_screen import initialize_app
+        exit_code, main_window = initialize_app(app, AvailabilityEditor)
+        sys.exit(exit_code)
         
-        window = AvailabilityEditor()
-        window.show()
-        sys.exit(app.exec())
     except Exception as e:
         # This will catch exceptions during startup
         from logger_utils import log_error
@@ -1536,6 +1538,7 @@ if __name__ == "__main__":
             QMessageBox.critical(None, "Fatal Error", 
                                 f"A fatal error occurred during startup: {str(e)}\n\n"
                                 f"Please check the log file at: {log_file}")
+
 
 
 
