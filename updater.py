@@ -8,16 +8,18 @@ from zipfile import ZipFile
 from datetime import datetime
 from packaging.version import parse as parse_version
 import requests
+import webbrowser  # Add this import for opening URLs
 
 # GitHub repository information
 GITHUB_OWNER = "AiroGriefwind"
 GITHUB_REPO = "ScheduleMaker"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
-CURRENT_VERSION = "0.9.8"  # Initial version - this should be updated with each release
+CURRENT_VERSION = "0.9.7"  # Initial version - this should be updated with each release
 
 class Updater:
     def __init__(self, logger=None):
         self.logger = logger or getLogger(__name__)
+        self.release_url = None  # Store the URL for later use
     
     def check_for_updates(self):
         """Check if a newer version is available on GitHub"""
@@ -34,10 +36,16 @@ class Updater:
             # Compare versions
             if parse_version(latest_version) > parse_version(CURRENT_VERSION):
                 self.logger.info(f"New version available: {latest_version} (current: {CURRENT_VERSION})")
+                
+                # Extract the URL from release notes if it's a Google Drive link
+                release_notes = latest_release['body']
+                self.release_url = self._extract_url_from_text(release_notes)
+                
                 return {
                     'version': latest_version,
                     'download_url': self._get_asset_download_url(latest_release),
-                    'release_notes': latest_release['body']
+                    'release_notes': release_notes,
+                    'release_url': self.release_url  # Add the extracted URL
                 }
             else:
                 self.logger.info("No updates available.")
@@ -46,6 +54,29 @@ class Updater:
             self.logger.error(f"Error checking for updates: {str(e)}")
             return None
     
+    def _extract_url_from_text(self, text):
+        """Extract URL from text (assuming it contains a Google Drive link)"""
+        import re
+        # Pattern to match URLs, especially Google Drive links
+        url_pattern = r'https?://(?:drive\.google\.com|docs\.google\.com)[^\s)"]+'
+        match = re.search(url_pattern, text)
+        if match:
+            return match.group(0)
+        return None
+    
+    def open_release_url(self):
+        """Open the release URL in the default web browser"""
+        if self.release_url:
+            try:
+                self.logger.info(f"Opening URL: {self.release_url}")
+                webbrowser.open(self.release_url)
+                return True
+            except Exception as e:
+                self.logger.error(f"Error opening URL: {str(e)}")
+                return False
+        return False
+    
+    # Rest of your methods remain the same
     def _get_asset_download_url(self, release):
         """Get the download URL for the appropriate asset"""
         # Look for a zip file asset that matches our platform

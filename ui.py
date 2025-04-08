@@ -29,6 +29,7 @@ from PySide6.QtXml import QDomDocument
 # Import for updater
 from updater import Updater
 from PySide6.QtWidgets import QMessageBox, QProgressDialog
+from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, QPushButton, QDialogButtonBox
 
 def compile_ts_to_qm(ts_file, qm_file):
     """Simple function to convert .ts file content to .qm format"""
@@ -307,59 +308,8 @@ class AvailabilityEditor(QMainWindow):
             progress.close()
             
             if update_info:
-                # Show update available dialog
-                reply = QMessageBox.question(
-                    self,
-                    "Update Available",
-                    f"A new version ({update_info['version']}) is available. Would you like to update now?\n\n"
-                    f"Release Notes:\n{update_info['release_notes']}",
-                    QMessageBox.Yes | QMessageBox.No
-                )
-                
-                if reply == QMessageBox.Yes:
-                    # Show download progress
-                    progress = QProgressDialog("Downloading update...", "Cancel", 0, 0, self)
-                    progress.setWindowTitle("Downloading")
-                    progress.setModal(True)
-                    progress.show()
-                    
-                    # Download the update
-                    update_zip = updater.download_update(update_info['download_url'])
-                    progress.close()
-                    
-                    if update_zip:
-                        # Confirm installation
-                        reply = QMessageBox.question(
-                            self,
-                            "Install Update",
-                            "The update has been downloaded. The application will close and restart after installation. Continue?",
-                            QMessageBox.Yes | QMessageBox.No
-                        )
-                        
-                        if reply == QMessageBox.Yes:
-                            # Apply the update
-                            if updater.apply_update(update_zip):
-                                QMessageBox.information(
-                                    self,
-                                    "Update Successful",
-                                    "The update has been installed successfully. The application will now restart."
-                                )
-                                
-                                # Restart the application
-                                python = sys.executable
-                                os.execl(python, python, *sys.argv)
-                            else:
-                                QMessageBox.critical(
-                                    self,
-                                    "Update Failed",
-                                    "Failed to apply the update. The application will continue with the current version."
-                                )
-                    else:
-                        QMessageBox.critical(
-                            self,
-                            "Download Failed",
-                            "Failed to download the update. Please try again later."
-                        )
+                # Show update available dialog with clickable link
+                self.show_update_dialog(update_info, updater)
             else:
                 QMessageBox.information(
                     self,
@@ -373,6 +323,115 @@ class AvailabilityEditor(QMainWindow):
                 "Error",
                 f"An error occurred while checking for updates: {str(e)}"
             )
+
+    def show_update_dialog(self, update_info, updater):
+        """Display update information with clickable download link"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Update Available")
+        dialog.setMinimumWidth(500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Update information
+        layout.addWidget(QLabel(f"A new version ({update_info['version']}) is available."))
+        layout.addWidget(QLabel("Would you like to update now?"))
+        
+        # Release notes section
+        layout.addWidget(QLabel("Release Notes:"))
+        notes_text = QTextEdit()
+        notes_text.setPlainText(update_info['release_notes'])
+        notes_text.setReadOnly(True)
+        notes_text.setMinimumHeight(150)
+        layout.addWidget(notes_text)
+        
+        # Download link section
+        if update_info.get('release_url'):
+            link_layout = QHBoxLayout()
+            link_layout.addWidget(QLabel("Download Link:"))
+            
+            # Create clickable link
+            link_button = QPushButton("Open Download Page")
+            link_button.clicked.connect(lambda: updater.open_release_url())
+            link_layout.addWidget(link_button)
+            
+            # Create copy button
+            copy_button = QPushButton("Copy Link")
+            copy_button.clicked.connect(lambda: self.copy_to_clipboard(update_info['release_url']))
+            link_layout.addWidget(copy_button)
+            
+            layout.addLayout(link_layout)
+        
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Yes | QDialogButtonBox.No)
+        button_box.accepted.connect(lambda: self.proceed_with_update(dialog, updater, update_info))
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        dialog.exec_()
+
+    def copy_to_clipboard(self, text):
+        """Copy text to clipboard"""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+        QMessageBox.information(self, "Copied", "Link copied to clipboard!")
+
+    def proceed_with_update(self, dialog, updater, update_info):
+        """Handle the update process after user confirms"""
+        dialog.accept()
+        
+        # If there's a direct download URL, use it
+        if update_info.get('download_url'):
+            # Show download progress
+            progress = QProgressDialog("Downloading update...", "Cancel", 0, 0, self)
+            progress.setWindowTitle("Downloading")
+            progress.setModal(True)
+            progress.show()
+            
+            # Download the update
+            update_zip = updater.download_update(update_info['download_url'])
+            progress.close()
+            
+            if update_zip:
+                # Confirm installation
+                reply = QMessageBox.question(
+                    self,
+                    "Install Update",
+                    "The update has been downloaded. The application will close and restart after installation. Continue?",
+                    QMessageBox.Yes | QMessageBox.No
+                )
+                
+                if reply == QMessageBox.Yes:
+                    # Apply the update
+                    if updater.apply_update(update_zip):
+                        QMessageBox.information(
+                            self,
+                            "Update Successful",
+                            "The update has been installed successfully. The application will now restart."
+                        )
+                        
+                        # Restart the application
+                        python = sys.executable
+                        os.execl(python, python, *sys.argv)
+                    else:
+                        QMessageBox.critical(
+                            self,
+                            "Update Failed",
+                            "Failed to apply the update. The application will continue with the current version."
+                        )
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Download Failed",
+                    "Failed to download the update. Please try again later or use the manual download link."
+                )
+        else:
+            # If no direct download URL, inform user to use the manual link
+            QMessageBox.information(
+                self,
+                "Manual Download Required",
+                "Please use the download link to manually update the application."
+            )
+
 
     def add_new_role(self):
         dialog = QDialog(self)

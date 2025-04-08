@@ -1,0 +1,52 @@
+2025-04-08 16:11:52,889 - INFO - Logging system initialized
+2025-04-08 16:11:52,889 - INFO - Application started
+2025-04-08 16:11:52,889 - INFO - Logging system initialized
+2025-04-08 16:11:52,889 - INFO - Application started
+2025-04-08 16:11:55,172 - ERROR - Failed to check for updates: name 'log_error' is not defined
+Traceback (most recent call last):
+  File "D:\workFiles\編更\updater.py", line 28, in check_for_updates
+    progress = QProgressDialog("Checking for updates...", "Cancel", 0, 0, self)
+               ^^^^^^^^^^^^^^^
+NameError: name 'QProgressDialog' is not defined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\workFiles\編更\ui.py", line 307, in check_for_updates
+    update_info = updater.check_for_updates()
+  File "D:\workFiles\編更\updater.py", line 50, in check_for_updates
+    log_error("Failed to check for updates", e)
+    ^^^^^^^^^
+NameError: name 'log_error' is not defined
+2025-04-08 16:12:03,891 - ERROR - Failed to check for updates: name 'log_error' is not defined
+Traceback (most recent call last):
+  File "D:\workFiles\編更\updater.py", line 28, in check_for_updates
+    progress = QProgressDialog("Checking for updates...", "Cancel", 0, 0, self)
+               ^^^^^^^^^^^^^^^
+NameError: name 'QProgressDialog' is not defined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\workFiles\編更\ui.py", line 307, in check_for_updates
+    update_info = updater.check_for_updates()
+  File "D:\workFiles\編更\updater.py", line 50, in check_for_updates
+    log_error("Failed to check for updates", e)
+    ^^^^^^^^^
+NameError: name 'log_error' is not defined
+2025-04-08 16:12:13,262 - ERROR - Failed to check for updates: name 'log_error' is not defined
+Traceback (most recent call last):
+  File "D:\workFiles\編更\updater.py", line 28, in check_for_updates
+    progress = QProgressDialog("Checking for updates...", "Cancel", 0, 0, self)
+               ^^^^^^^^^^^^^^^
+NameError: name 'QProgressDialog' is not defined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\workFiles\編更\ui.py", line 307, in check_for_updates
+    update_info = updater.check_for_updates()
+  File "D:\workFiles\編更\updater.py", line 50, in check_for_updates
+    log_error("Failed to check for updates", e)
+    ^^^^^^^^^
+NameError: name 'log_error' is not defined
