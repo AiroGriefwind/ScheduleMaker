@@ -14,7 +14,7 @@ import webbrowser  # Add this import for opening URLs
 GITHUB_OWNER = "AiroGriefwind"
 GITHUB_REPO = "ScheduleMaker"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
-CURRENT_VERSION = "0.9.7"  # Initial version - this should be updated with each release
+CURRENT_VERSION = "1.0.0"  # Initial version - this should be updated with each release
 
 class Updater:
     def __init__(self, logger=None):
