@@ -215,21 +215,32 @@ class AvailabilityEditor(QMainWindow):
         
         # Add scroll area to calendar container
         calendar_container.addWidget(scroll)
-        
+
         holidays_label = QLabel()
         holidays_label.setTextFormat(Qt.TextFormat.RichText)
         holidays_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        holidays_label.setStyleSheet("""
-            background-color: black;
-            border: 1px solid #c0c0c0;
+
+        # Get the application palette to determine if we're in dark or light mode
+        app_palette = QApplication.palette()
+        is_dark_mode = app_palette.color(QPalette.WindowText).lightness() > app_palette.color(QPalette.Window).lightness()
+
+        # Set colors based on the detected mode
+        bg_color = "black" if is_dark_mode else "#f0f0f0"
+        text_color = "white" if is_dark_mode else "black"
+        border_color = "#c0c0c0" if is_dark_mode else "#505050"
+
+        holidays_label.setStyleSheet(f"""
+            background-color: {bg_color};
+            color: {text_color};
+            border: 1px solid {border_color};
             padding: 10px;
             font-size: 12px;
         """)
 
-        # 設置公眾假期文本
-        holidays_text = """
-        <h3 style='text-align:center;'>2025年香港公眾假期</h3>
-        <table border='1' cellspacing='0' cellpadding='5' style='border-collapse:collapse; width:100%;'>
+        # Set the text color in the HTML based on the detected mode
+        holidays_text = f"""
+        <h3 style='text-align:center; color:{text_color};'>2025年香港公眾假期</h3>
+        <table border='1' cellspacing='0' cellpadding='5' style='border-collapse:collapse; width:100%; color:{text_color};'>
         <tr><td>1月1日</td><td>星期三</td><td>元旦</td></tr>
         <tr><td>1月29日</td><td>星期三</td><td>農曆新年初一</td></tr>
         <tr><td>1月30日</td><td>星期四</td><td>農曆新年初二</td></tr>
@@ -250,6 +261,7 @@ class AvailabilityEditor(QMainWindow):
         </table>
         """
         holidays_label.setText(holidays_text)
+
 
         # 設置固定寬度，但允許垂直滾動
         holidays_label.setFixedWidth(300)
