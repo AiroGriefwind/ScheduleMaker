@@ -10,6 +10,9 @@ from packaging.version import parse as parse_version
 import requests
 import webbrowser  # Add this import for opening URLs
 
+# PyInstaller command to create a standalone executable
+#pyinstaller --onefile --windowed --add-data "*.json;." --add-data "zh_TW.qm;." ui.py
+
 # GitHub repository information
 GITHUB_OWNER = "AiroGriefwind"
 GITHUB_REPO = "ScheduleMaker"

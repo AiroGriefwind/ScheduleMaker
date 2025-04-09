@@ -1,6 +1,0 @@
-2025-04-07 17:53:04,637 - INFO - Logging system initialized
-2025-04-07 17:53:04,637 - INFO - Application started
-2025-04-07 17:53:04,637 - INFO - Logging system initialized
-2025-04-07 17:53:04,637 - INFO - Application started
-2025-04-07 17:53:07,720 - INFO - Checking for updates...
-2025-04-07 17:53:08,170 - ERROR - Error checking for updates: 404 Client Error: Not Found for url: https://api.github.com/repos/AiroGriefwind/ScheduleMaker/releases/latest

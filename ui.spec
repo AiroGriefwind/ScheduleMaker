@@ -5,7 +5,7 @@ a = Analysis(
     ['ui.py'],
     pathex=[],
     binaries=[],
-    datas=[('zh_TW.qm', '.')],
+    datas=[('*.json', '.'), ('zh_TW.qm', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
