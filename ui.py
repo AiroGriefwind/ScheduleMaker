@@ -23,7 +23,7 @@ from logger_utils import setup_logging, log_error, log_info, create_data_package
 # Import for localization
 # after updating the .ts file, run this in console to generate the .qm file
 #& "C:/Users/wangz/AppData/Local/Programs/Python/Python313/Lib/site-packages/PySide6/lrelease.exe" zh_TW.ts
-from PySide6.QtCore import QTranslator, QFile, QIODevice
+from PySide6.QtCore import QTranslator, QFile, QIODevice, QLocale
 from PySide6.QtXml import QDomDocument
 
 # Import for updater
@@ -45,7 +45,6 @@ def compile_ts_to_qm(ts_file, qm_file):
 
 # Try to compile the .ts file
 compile_ts_to_qm("zh_TW.ts", "zh_TW.qm")
-
 
 class AvailabilityEditor(QMainWindow):
     def __init__(self, start_date=datetime(2025, 3, 17)):
@@ -1532,12 +1531,24 @@ if __name__ == "__main__":
         
         app = QApplication(sys.argv)
         
-        # Create and install translator
+        # Determine if running as bundled app
+        if getattr(sys, 'frozen', False):
+            # If bundled with PyInstaller, use _MEIPASS
+            basedir = sys._MEIPASS
+        else:
+            # If running as script, use script directory
+            basedir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Create translator
         translator = QTranslator()
-        if not translator.load("zh_TW.ts"):
-            if not translator.load("zh_TW.qm"):
-                print("Failed to load translation file")
-        app.installTranslator(translator)
+        translation_file = os.path.join(basedir, "zh_TW.qm")
+        
+        # Load and install translator
+        if translator.load(translation_file):
+            app.installTranslator(translator)
+            print(f"Translation loaded successfully from {translation_file}")
+        else:
+            print(f"Failed to load translation from {translation_file}")
         
         # Import and use the splash screen
         from splash_screen import initialize_app
