@@ -307,8 +307,9 @@ class AvailabilityEditor(QMainWindow):
         """Check for application updates and prompt user to install if available"""
         try:
             # Create a progress dialog
-            progress = QProgressDialog("Checking for updates...", "Cancel", 0, 0, self)
-            progress.setWindowTitle("Update Check")
+            progress = QProgressDialog(self.tr("Checking for updates..."), self.tr("Cancel"), 0, 0, self)
+            progress.setWindowTitle(self.tr("Update Check"))
+
             progress.setModal(True)
             progress.show()
             
@@ -324,32 +325,34 @@ class AvailabilityEditor(QMainWindow):
                 self.show_update_dialog(update_info, updater)
             else:
                 QMessageBox.information(
-                    self,
-                    "No Updates",
-                    "You are using the latest version of the application."
-                )
+                self,
+                self.tr("No Updates"),
+                self.tr("You are using the latest version of the application.")
+            )
+
         except Exception as e:
             log_error("Failed to check for updates", e)
             QMessageBox.critical(
                 self,
-                "Error",
-                f"An error occurred while checking for updates: {str(e)}"
+                self.tr("Error"),
+                self.tr("An error occurred while checking for updates: ") + str(e)
             )
+
 
     def show_update_dialog(self, update_info, updater):
         """Display update information with clickable download link"""
         dialog = QDialog(self)
-        dialog.setWindowTitle("Update Available")
+        dialog.setWindowTitle(self.tr("Update Available"))
         dialog.setMinimumWidth(500)
         
         layout = QVBoxLayout(dialog)
         
         # Update information
-        layout.addWidget(QLabel(f"A new version ({update_info['version']}) is available."))
-        layout.addWidget(QLabel("Would you like to update now?"))
+        layout.addWidget(QLabel(self.tr("A new version (") + update_info['version'] + self.tr(") is available.")))
+        layout.addWidget(QLabel(self.tr("Would you like to update now?")))
         
         # Release notes section
-        layout.addWidget(QLabel("Release Notes:"))
+        layout.addWidget(QLabel(self.tr("Release Notes:")))
         notes_text = QTextEdit()
         notes_text.setPlainText(update_info['release_notes'])
         notes_text.setReadOnly(True)
@@ -359,15 +362,15 @@ class AvailabilityEditor(QMainWindow):
         # Download link section
         if update_info.get('release_url'):
             link_layout = QHBoxLayout()
-            link_layout.addWidget(QLabel("Download Link:"))
+            link_layout.addWidget(QLabel(self.tr("Download Link:")))
             
             # Create clickable link
-            link_button = QPushButton("Open Download Page")
+            link_button = QPushButton(self.tr("Open Download Page"))
             link_button.clicked.connect(lambda: updater.open_release_url())
             link_layout.addWidget(link_button)
             
             # Create copy button
-            copy_button = QPushButton("Copy Link")
+            copy_button = QPushButton(self.tr("Copy Link"))
             copy_button.clicked.connect(lambda: self.copy_to_clipboard(update_info['release_url']))
             link_layout.addWidget(copy_button)
             
@@ -385,7 +388,8 @@ class AvailabilityEditor(QMainWindow):
         """Copy text to clipboard"""
         clipboard = QApplication.clipboard()
         clipboard.setText(text)
-        QMessageBox.information(self, "Copied", "Link copied to clipboard!")
+        QMessageBox.information(self, self.tr("Copied"), self.tr("Link copied to clipboard!"))
+
 
     def proceed_with_update(self, dialog, updater, update_info):
         """Handle the update process after user confirms"""
@@ -394,8 +398,8 @@ class AvailabilityEditor(QMainWindow):
         # If there's a direct download URL, use it
         if update_info.get('download_url'):
             # Show download progress
-            progress = QProgressDialog("Downloading update...", "Cancel", 0, 0, self)
-            progress.setWindowTitle("Downloading")
+            progress = QProgressDialog(self.tr("Downloading update..."), self.tr("Cancel"), 0, 0, self)
+            progress.setWindowTitle(self.tr("Downloading"))
             progress.setModal(True)
             progress.show()
             
@@ -407,8 +411,8 @@ class AvailabilityEditor(QMainWindow):
                 # Confirm installation
                 reply = QMessageBox.question(
                     self,
-                    "Install Update",
-                    "The update has been downloaded. The application will close and restart after installation. Continue?",
+                    self.tr("Install Update"),
+                    self.tr("The update has been downloaded. The application will close and restart after installation. Continue?"),
                     QMessageBox.Yes | QMessageBox.No
                 )
                 
@@ -417,8 +421,8 @@ class AvailabilityEditor(QMainWindow):
                     if updater.apply_update(update_zip):
                         QMessageBox.information(
                             self,
-                            "Update Successful",
-                            "The update has been installed successfully. The application will now restart."
+                            self.tr("Update Successful"),
+                            self.tr("The update has been installed successfully. The application will now restart.")
                         )
                         
                         # Restart the application
@@ -427,21 +431,21 @@ class AvailabilityEditor(QMainWindow):
                     else:
                         QMessageBox.critical(
                             self,
-                            "Update Failed",
-                            "Failed to apply the update. The application will continue with the current version."
+                            self.tr("Update Failed"),
+                            self.tr("Failed to apply the update. Please try again later.")
                         )
             else:
                 QMessageBox.critical(
                     self,
-                    "Download Failed",
-                    "Failed to download the update. Please try again later or use the manual download link."
+                    self.tr("Download Failed"),
+                    self.tr("Failed to download the update. Please try again later or use the manual download link.")
                 )
         else:
             # If no direct download URL, inform user to use the manual link
             QMessageBox.information(
                 self,
-                "Manual Download Required",
-                "Please use the download link to manually update the application."
+                self.tr("Manual Download Required"),
+                self.tr("Please use the download link to manually update the application.")
             )
 
 
