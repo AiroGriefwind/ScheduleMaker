@@ -1,0 +1,3 @@
+2025-04-11 14:29:07,412 - INFO - Attempting to send SMS to: +85266631823
+2025-04-11 14:29:09,762 - INFO - API Response: {'message': 'Message is queued for sending! Please check report for update', 'success': True, 'message_id': '478072-1744352-9e01-a0b8-1bfadf54-c5'}
+2025-04-11 14:29:09,762 - INFO - Successfully sent SMS. Response: {"message":"Message is queued for sending! Please check report for update","success":true,"message_id":"478072-1744352-9e01-a0b8-1bfadf54-c5"}
