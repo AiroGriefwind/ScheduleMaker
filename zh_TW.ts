@@ -40,6 +40,10 @@
         <translation>保存時間表</translation>
     </message>
     <message>
+        <location filename="ui.py" line="105"/>
+        <source>View Saved Schedules</source>
+        <translation>查看存檔</translation>
+    <message>
         <location filename="ui.py" line="107"/>
         <source>Export schedule to Excel</source>
         <translation>導出更表至 Excel</translation>

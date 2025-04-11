@@ -9,6 +9,8 @@ from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QDial
 from PySide6.QtCore import Qt, QDate, QPoint
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtGui import QCursor # Import for correctly positioning leave menu
+
+from save_manager import SaveManager
 from scheduling_logic import (EMPLOYEES, Freelancer,  
                               load_data, save_data, init_availability, 
                                generate_schedule, import_from_excel, 
@@ -30,6 +32,9 @@ from PySide6.QtXml import QDomDocument
 from updater import Updater
 from PySide6.QtWidgets import QMessageBox, QProgressDialog
 from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, QPushButton, QDialogButtonBox
+
+
+
 
 def compile_ts_to_qm(ts_file, qm_file):
     """Simple function to convert .ts file content to .qm format"""
@@ -53,6 +58,9 @@ class AvailabilityEditor(QMainWindow):
         # Initialize logging first thing
         self.log_file = setup_logging()
         log_info("Application started")
+
+        # Initialize save manager
+        self.save_manager = SaveManager()
 
         self.start_date = start_date
         self.employees = load_employees()  # Load employees from JSON
@@ -80,6 +88,7 @@ class AvailabilityEditor(QMainWindow):
         availability_btn = QPushButton(self.tr("Availability"))
         availability_menu = QMenu(self)
         save_action = availability_menu.addAction(self.tr("Save Availability"))
+        view_saves_action = availability_menu.addAction(self.tr("View Saved Schedules")) 
         availability_menu.addSeparator()
         import_excel_action = availability_menu.addAction(self.tr("Import from Excel"))
         import_form_action = availability_menu.addAction(self.tr("Import from Google Form"))
@@ -120,6 +129,7 @@ class AvailabilityEditor(QMainWindow):
 
         # Connect all actions to their respective functions
         save_action.triggered.connect(self.save_data)
+        view_saves_action.triggered.connect(self.open_save_browser)
         import_excel_action.triggered.connect(self.import_from_excel)
         import_form_action.triggered.connect(self.import_from_google_form)
         export_avail_action.triggered.connect(self.export_availability_to_excel)
@@ -793,6 +803,102 @@ class AvailabilityEditor(QMainWindow):
             self.update_calendar()
             
         dialog.accept()
+    
+    def open_save_browser(self):
+        """Open the save browser window."""
+        try:
+            # Create the save browser window
+            save_browser = SaveBrowserWindow(self)
+            
+            # Make sure it's shown as a modal dialog
+            save_browser.exec_()
+            
+            # Log that the window was opened
+            log_info("Save browser window opened")
+        except Exception as e:
+            # Log any errors
+            log_error("Error opening save browser window", e)
+            
+            # Show error message to user
+            QMessageBox.critical(
+                self,
+                self.tr("Error"),
+                self.tr(f"Failed to open save browser: {str(e)}")
+            )
+
+        
+    def save_current_data(self):
+        """Save the current availability and schedule data."""
+        # Get start date from the class
+        start_date = self.start_date
+        
+        # Calculate end date (assuming your availability covers 28 days)
+        end_date = start_date + datetime.timedelta(days=27)
+        
+        # Open dialog to get description
+        from PySide6.QtWidgets import QInputDialog
+        description, ok = QInputDialog.getText(
+            self,
+            self.tr("Save Description"), 
+            self.tr("Enter a description for this save:")
+        )
+        
+        if ok:  # User didn't cancel
+            try:
+                # Get the last generated schedule if available
+                from scheduling_logic import get_last_generated_schedule
+                schedule_data = get_last_generated_schedule() if 'get_last_generated_schedule' in dir() else None
+                
+                # Save the current data
+                save_id = self.save_manager.save_schedule(
+                    availability_data=self.availability,
+                    schedule_data=schedule_data,
+                    description=description,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+                QMessageBox.information(
+                    self, 
+                    self.tr("Save Successful"), 
+                    self.tr(f"Schedule saved successfully as {save_id}")
+                )
+            except Exception as e:
+                log_error("Failed to save schedule", e)
+                QMessageBox.showerror(
+                    self,
+                    self.tr("Save Error"), 
+                    self.tr(f"Failed to save schedule: {str(e)}")
+                )
+                
+    def load_save_data(self, save_id):
+        """Load data from a save."""
+        try:
+            save_data = self.save_manager.load_save(save_id)
+            
+            # Update availability data
+            self.availability = save_data.get("availability_data", {})
+            
+            # Update start date if available
+            if save_data.get("metadata", {}).get("start_date"):
+                start_date_str = save_data["metadata"]["start_date"]
+                self.start_date = datetime.datetime.fromisoformat(start_date_str).date()
+            
+            # Update UI to reflect loaded data
+            self.update_calendar()
+            
+            QMessageBox.information(
+                self,
+                self.tr("Load Successful"), 
+                self.tr(f"Schedule {save_id} loaded successfully")
+            )
+            
+        except Exception as e:
+            log_error("Failed to load schedule", e)
+            QMessageBox.critical(
+                self,
+                self.tr("Load Error"), 
+                self.tr(f"Failed to load schedule: {str(e)}")
+            )
 
 
     def create_day_widget(self, date_str):
@@ -1265,7 +1371,20 @@ class AvailabilityEditor(QMainWindow):
     def save_data(self):
         sync_availability()  # Force synchronization
         save_data(self.availability)
-        QMessageBox.information(self, "Saved", "Availability saved!")
+        
+        # Ask if user wants to create a named save
+        reply = QMessageBox.question(
+            self,
+            self.tr("Create Save"),
+            self.tr("Availability saved! Would you like to create a named save for this schedule?"),
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.save_current_data()
+        else:
+            QMessageBox.information(self, self.tr("Saved"), self.tr("Availability saved!"))
+
     
     def validate_schedule(self):
         warnings = generate_schedule(self.availability, self.start_date, export_to_excel=False)
@@ -1520,6 +1639,231 @@ class LeaveDialog(QDialog):
     def get_leave_type(self):
         return self.leave_type_combo.currentText()
     
+class SaveBrowserWindow(QDialog):
+    """Window for browsing and managing saved schedules."""
+    
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        self.save_manager = parent.save_manager
+        
+        # Set window properties
+        self.setWindowTitle(parent.tr("Saved Schedules"))
+        self.setMinimumSize(800, 500)
+        self.setModal(True)
+        
+        # Create the main layout
+        main_layout = QVBoxLayout(self)
+        
+        # Create a label
+        title_label = QLabel(parent.tr("Available Saved Schedules"))
+        title_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        title_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title_label)
+        
+        # Create a frame for the table
+        table_frame = QWidget()
+        table_layout = QVBoxLayout(table_frame)
+        
+        # Create the table widget
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels([
+            parent.tr("Save ID"), 
+            parent.tr("Created On"), 
+            parent.tr("Start Date"), 
+            parent.tr("End Date"), 
+            parent.tr("Description")
+        ])
+        
+        # Set column widths
+        self.table.setColumnWidth(0, 150)  # Save ID
+        self.table.setColumnWidth(1, 150)  # Created On
+        self.table.setColumnWidth(2, 100)  # Start Date
+        self.table.setColumnWidth(3, 100)  # End Date
+        self.table.setColumnWidth(4, 250)  # Description
+        
+        # Make the table take all available space
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setVisible(False)
+        
+        # Enable selection of entire rows
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SingleSelection)
+        
+        # Add the table to the layout
+        table_layout.addWidget(self.table)
+        main_layout.addWidget(table_frame)
+        
+        # Add buttons for actions
+        button_layout = QHBoxLayout()
+        
+        self.load_btn = QPushButton(parent.tr("Load Selected"))
+        self.load_btn.clicked.connect(self.load_selected)
+        button_layout.addWidget(self.load_btn)
+        
+        self.delete_btn = QPushButton(parent.tr("Delete Selected"))
+        self.delete_btn.clicked.connect(self.delete_selected)
+        button_layout.addWidget(self.delete_btn)
+        
+        self.backup_btn = QPushButton(parent.tr("Backup Selected"))
+        self.backup_btn.clicked.connect(self.backup_selected)
+        button_layout.addWidget(self.backup_btn)
+        
+        button_layout.addStretch()  # Add stretch to push close button to the right
+        
+        self.close_btn = QPushButton(parent.tr("Close"))
+        self.close_btn.clicked.connect(self.close)
+        button_layout.addWidget(self.close_btn)
+        
+        main_layout.addLayout(button_layout)
+        
+        # Load and display saves
+        self.load_saves()
+        
+    def load_saves(self):
+        """Load and display all saves in the table."""
+        # Clear existing items
+        self.table.setRowCount(0)
+            
+        # Get all saves
+        saves = self.save_manager.get_all_saves()
+        
+        # Add saves to the table
+        for row, save in enumerate(saves):
+            self.table.insertRow(row)
+            
+            # Format dates for display
+            created_at = self.format_datetime(save.get("created_at", ""))
+            start_date = self.format_date(save.get("start_date", ""))
+            end_date = self.format_date(save.get("end_date", ""))
+            
+            # Set cell values
+            self.table.setItem(row, 0, QTableWidgetItem(save.get("id", "")))
+            self.table.setItem(row, 1, QTableWidgetItem(created_at))
+            self.table.setItem(row, 2, QTableWidgetItem(start_date))
+            self.table.setItem(row, 3, QTableWidgetItem(end_date))
+            self.table.setItem(row, 4, QTableWidgetItem(save.get("description", "")))
+    
+    def format_datetime(self, datetime_str):
+        """Format ISO datetime string for display."""
+        if not datetime_str:
+            return ""
+        try:
+            dt = datetime.datetime.fromisoformat(datetime_str)
+            return dt.strftime("%Y-%m-%d %H:%M")
+        except:
+            return datetime_str
+    
+    def format_date(self, date_str):
+        """Format ISO date string for display."""
+        if not date_str:
+            return ""
+        try:
+            dt = datetime.date.fromisoformat(date_str)
+            return dt.strftime("%Y-%m-%d")
+        except:
+            return date_str
+    
+    def load_selected(self):
+        """Load the selected save."""
+        selected_items = self.table.selectedItems()
+        
+        if not selected_items:
+            QMessageBox.warning(
+                self, 
+                self.parent.tr("No Selection"), 
+                self.parent.tr("Please select a save to load")
+            )
+            return
+            
+        # Get the save ID from the selected row
+        row = selected_items[0].row()
+        save_id = self.table.item(row, 0).text()
+        
+        # Confirm before loading
+        reply = QMessageBox.question(
+            self,
+            self.parent.tr("Confirm Load"), 
+            self.parent.tr("Loading this save will replace your current data. Continue?"),
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.accept()  # Close the browser window
+            self.parent.load_save_data(save_id)
+    
+    def delete_selected(self):
+        """Delete the selected save."""
+        selected_items = self.table.selectedItems()
+        
+        if not selected_items:
+            QMessageBox.warning(
+                self, 
+                self.parent.tr("No Selection"), 
+                self.parent.tr("Please select a save to delete")
+            )
+            return
+            
+        # Get the save ID from the selected row
+        row = selected_items[0].row()
+        save_id = self.table.item(row, 0).text()
+        
+        # Confirm before deleting
+        reply = QMessageBox.question(
+            self,
+            self.parent.tr("Confirm Delete"), 
+            self.parent.tr(f"Are you sure you want to delete save {save_id}?"),
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            success = self.save_manager.delete_save(save_id)
+            
+            if success:
+                QMessageBox.information(
+                    self, 
+                    self.parent.tr("Delete Successful"), 
+                    self.parent.tr(f"Save {save_id} deleted successfully")
+                )
+                self.load_saves()  # Refresh the list
+            else:
+                QMessageBox.critical(
+                    self, 
+                    self.parent.tr("Delete Failed"), 
+                    self.parent.tr(f"Failed to delete save {save_id}")
+                )
+                
+    def backup_selected(self):
+        """Backup the selected save."""
+        selected_items = self.table.selectedItems()
+        
+        if not selected_items:
+            QMessageBox.warning(
+                self, 
+                self.parent.tr("No Selection"), 
+                self.parent.tr("Please select a save to backup")
+            )
+            return
+            
+        # Get the save ID from the selected row
+        row = selected_items[0].row()
+        save_id = self.table.item(row, 0).text()
+        
+        success = self.save_manager.backup_save(save_id)
+        
+        if success:
+            QMessageBox.information(
+                self, 
+                self.parent.tr("Backup Successful"), 
+                self.parent.tr(f"Save {save_id} backed up successfully to the backups folder")
+            )
+        else:
+            QMessageBox.critical(
+                self, 
+                self.parent.tr("Backup Failed"), 
+                self.parent.tr(f"Failed to backup save {save_id}")
+            )
 
 
 if __name__ == "__main__":
